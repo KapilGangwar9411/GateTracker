@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useTheme } from '@/contexts/ThemeContext';
 
 type LectureCardProps = {
   lecture: Lecture;
@@ -29,20 +30,29 @@ const LectureCard = ({
   handleDeleteLecture,
   handleEditLecture,
 }: LectureCardProps) => {
+  const { theme } = useTheme();
   if (!lecture || !lecture.id) return null;
 
   // Get status color
   const getStatusColor = (status: string | null | undefined) => {
     switch (status) {
       case 'completed':
-        return 'text-green-600 bg-green-100 border-green-200';
+        return theme === 'dark' 
+          ? 'text-green-400 bg-green-950/40 border-green-800/50' 
+          : 'text-green-600 bg-green-100 border-green-200';
       case 'in_progress':
-        return 'text-blue-600 bg-blue-100 border-blue-200';
+        return theme === 'dark'
+          ? 'text-blue-400 bg-blue-950/40 border-blue-800/50'
+          : 'text-blue-600 bg-blue-100 border-blue-200';
       case 'needs_revision':
-        return 'text-amber-600 bg-amber-100 border-amber-200';
+        return theme === 'dark'
+          ? 'text-amber-400 bg-amber-950/40 border-amber-800/50'
+          : 'text-amber-600 bg-amber-100 border-amber-200';
       case 'not_started':
       default:
-        return 'text-slate-600 bg-slate-100 border-slate-200';
+        return theme === 'dark'
+          ? 'text-slate-400 bg-slate-800/40 border-slate-700/50'
+          : 'text-slate-600 bg-slate-100 border-slate-200';
     }
   };
 
@@ -50,14 +60,14 @@ const LectureCard = ({
   const getStatusIcon = (status: string | null | undefined) => {
     switch (status) {
       case 'completed':
-        return <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />;
+        return <CheckCircle2 className={theme === 'dark' ? "h-3.5 w-3.5 text-green-400" : "h-3.5 w-3.5 text-green-600"} />;
       case 'in_progress':
-        return <BookOpenCheck className="h-3.5 w-3.5 text-blue-600" />;
+        return <BookOpenCheck className={theme === 'dark' ? "h-3.5 w-3.5 text-blue-400" : "h-3.5 w-3.5 text-blue-600"} />;
       case 'needs_revision':
-        return <RotateCw className="h-3.5 w-3.5 text-amber-600" />;
+        return <RotateCw className={theme === 'dark' ? "h-3.5 w-3.5 text-amber-400" : "h-3.5 w-3.5 text-amber-600"} />;
       case 'not_started':
       default:
-        return <Clock className="h-3.5 w-3.5 text-slate-600" />;
+        return <Clock className={theme === 'dark' ? "h-3.5 w-3.5 text-slate-400" : "h-3.5 w-3.5 text-slate-600"} />;
     }
   };
 
@@ -194,7 +204,7 @@ const LectureCard = ({
         
         {/* Description */}
         <div className="text-sm text-muted-foreground min-h-[2rem] line-clamp-2">
-          {lecture.description || <span className="italic text-slate-400">No description provided</span>}
+          {lecture.description || <span className={theme === 'dark' ? "italic text-slate-500" : "italic text-slate-400"}>No description provided</span>}
         </div>
         
         {/* Tags */}
@@ -233,7 +243,7 @@ const LectureCard = ({
         </div>
       </CardContent>
       
-      <CardFooter className="p-0 mt-auto border-t bg-muted/20">
+      <CardFooter className="p-0 mt-auto border-t">
         <div className="grid grid-cols-3 divide-x w-full">
           {/* Notes Button */}
           <Button 

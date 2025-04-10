@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Navbar from "@/components/Navbar";
@@ -14,7 +13,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-50 font-['Bricolage_Grotesque',sans-serif]">
+    <div className="min-h-screen bg-background font-['Bricolage_Grotesque',sans-serif]">
       <Navbar />
       
       <div className="container py-6 px-4 md:px-6">

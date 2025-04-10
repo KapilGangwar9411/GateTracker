@@ -1,0 +1,67 @@
+
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Navbar from "@/components/Navbar";
+import Dashboard from "@/components/Dashboard";
+import TaskScheduler from "@/components/TaskScheduler";
+import SubjectTracker from "@/components/SubjectTracker";
+import StudyTimer from "@/components/StudyTimer";
+import QuickNotes from "@/components/QuickNotes";
+import Reminders from "@/components/Reminders";
+import LectureTracker from "@/components/LectureTracker";
+
+const Index = () => {
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  return (
+    <div className="min-h-screen bg-gray-50 font-['Bricolage_Grotesque',sans-serif]">
+      <Navbar />
+      
+      <div className="container py-6 px-4 md:px-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="overflow-x-auto">
+            <TabsList className="mb-8">
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="tasks">Tasks</TabsTrigger>
+              <TabsTrigger value="subjects">Subjects</TabsTrigger>
+              <TabsTrigger value="lectures">Lectures</TabsTrigger>
+              <TabsTrigger value="timer">Timer</TabsTrigger>
+              <TabsTrigger value="notes">Notes</TabsTrigger>
+              <TabsTrigger value="reminders">Reminders</TabsTrigger>
+            </TabsList>
+          </div>
+          
+          <TabsContent value="dashboard">
+            <Dashboard />
+          </TabsContent>
+          
+          <TabsContent value="tasks">
+            <TaskScheduler />
+          </TabsContent>
+          
+          <TabsContent value="subjects">
+            <SubjectTracker />
+          </TabsContent>
+          
+          <TabsContent value="lectures">
+            <LectureTracker />
+          </TabsContent>
+          
+          <TabsContent value="timer">
+            <StudyTimer />
+          </TabsContent>
+          
+          <TabsContent value="notes">
+            <QuickNotes />
+          </TabsContent>
+          
+          <TabsContent value="reminders">
+            <Reminders />
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+export default Index;

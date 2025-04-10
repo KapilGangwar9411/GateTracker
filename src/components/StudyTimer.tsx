@@ -339,58 +339,87 @@ const StudyTimer = () => {
     }
   };
 
+  // Add a function to play the sounds for testing
+  const testSounds = () => {
+    if (reminderSoundRef.current) {
+      reminderSoundRef.current.currentTime = 0;
+      reminderSoundRef.current.play()
+        .then(() => {
+          // After reminder sound finishes, play completion sound
+          setTimeout(() => {
+            if (completionSoundRef.current) {
+              completionSoundRef.current.currentTime = 0;
+              completionSoundRef.current.play()
+                .catch(err => console.error('Error playing completion sound:', err));
+            }
+          }, 1000); // Wait 1 second between sounds
+        })
+        .catch(err => console.error('Error playing reminder sound:', err));
+    }
+    
+    toast.info('Testing notification sounds', {
+      description: 'You should hear two notification sounds',
+      duration: 3000,
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Study Timer</h2>
-        <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => refetchSessions()}>
-              <BarChart className="h-4 w-4 mr-2" />
-              Today's Stats
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Study Statistics</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Today's study time:</span>
-                  <span className="font-medium">{formatStudyTimeForDisplay(totalStudyTime)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sessions completed:</span>
-                  <span className="font-medium">{todaySessions?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pomodoro cycles:</span>
-                  <span className="font-medium">{cycles}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Today's sessions</h4>
-                {todaySessions && todaySessions.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {todaySessions.map((session, index) => (
-                      <div key={session.id} className="flex justify-between text-sm border-b pb-1">
-                        <span>Session {index + 1}</span>
-                        <span>{formatStudyTimeForDisplay(session.duration)}</span>
-                        <span className="text-muted-foreground">
-                          {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                      </div>
-                    ))}
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={testSounds}>
+            Test Sounds
+          </Button>
+          <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" onClick={() => refetchSessions()}>
+                <BarChart className="h-4 w-4 mr-2" />
+                Today's Stats
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Study Statistics</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span>Today's study time:</span>
+                    <span className="font-medium">{formatStudyTimeForDisplay(totalStudyTime)}</span>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No study sessions recorded today</p>
-                )}
+                  <div className="flex justify-between">
+                    <span>Sessions completed:</span>
+                    <span className="font-medium">{todaySessions?.length || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Pomodoro cycles:</span>
+                    <span className="font-medium">{cycles}</span>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium">Today's sessions</h4>
+                  {todaySessions && todaySessions.length > 0 ? (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {todaySessions.map((session, index) => (
+                        <div key={session.id} className="flex justify-between text-sm border-b pb-1">
+                          <span>Session {index + 1}</span>
+                          <span>{formatStudyTimeForDisplay(session.duration)}</span>
+                          <span className="text-muted-foreground">
+                            {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No study sessions recorded today</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       
       <Card className="max-w-md mx-auto">

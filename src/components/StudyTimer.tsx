@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,6 +28,12 @@ const REMINDER_MESSAGES = [
 
 type ReminderMessage = typeof REMINDER_MESSAGES[number];
 
+// Base64 encoded audio for notifications (short beep sounds)
+const NOTIFICATION_SOUNDS = {
+  reminder: "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAASAAAJhgBJSUlJSUlJSUljY2NjY2NjY2N8fHx8fHx8fHyVlZWVlZWVlZWvr6+vr6+vr6/IyMjIyMjIyMji4uLi4uLi4uL7+/v7+/v7+/v///////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAABYZoqPGXAAAAAAD/+5BkAAAAAAASwAAAAAAAAkgAAAAACJoEt6ILsKHgBiJIMw8JsEAAAAAAAIAAIiIAABIkSBAAAAACIkiRPAhCEBCCIfAQOwEDsIQsQgIB8B8BABAICAgPAQ+AgAIAgAICZ+Cr/AAIAAgAAAAAgAAAAMYjn4GUhD8BAQHwAAAAM4vn4C4CAgIPgAAAAj4O/gLnwEBAT8AYxj/wFzGI+AuAgICZ+Af4CAAAAZw44CYCAgJnwAAwzgAGMBcBAQEBK/AeAZxwADAQEBATPgDgZ8AAMBAQEz4A8AwXw44CAlbAJn4CYBnAIAZ8AABcAAYAA4AAwXBwZ+GfhwIBMAmARkAuAwg=",
+  completion: "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAASAAAJhgBJSUlJSUlJSUljY2NjY2NjY2N8fHx8fHx8fHyVlZWVlZWVlZWvr6+vr6+vr6/IyMjIyMjIyMji4uLi4uLi4uL7+/v7+/v7+/v///////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAABYb7nxBJAAAAAAD/+xBkYYAAAASwAAAAAAAAgwAAAAACHoLt6IXs5n8A8JLCTDmmEAAAEAAAIAAAJEiAAARIkAQAAAQIiRJECEISEIQB8BAHgQBwEIWIQEA+A+AgAgQEBA+BD4CAAgCAAgJn4Kv8AAIAAgAAAAAgAAAAxg8QgMZCH4CAgPgAAAAzg6AwrkICAgPgAAAAh4BkMDCuQgICZ8AABjwFwDBfIQEBPwLgGAfAAMHwgICVsAM+AOAYAATwAYOAQEr4PAJnwAAwfAgJXwA8DP8AMHwICZsAGfgBgTPwABgABA8AAmfABlwAJg+CBhYBM+AN4MYGAfgH4GfAAGA+ABMgEARhAZDEE="
+};
+
 const StudyTimer = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("pomodoro");
@@ -43,6 +49,26 @@ const StudyTimer = () => {
   const [reminderMessage, setReminderMessage] = useState<ReminderMessage>(REMINDER_MESSAGES[0]);
   const [nextReminderTime, setNextReminderTime] = useState<number | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  
+  // Create audio refs using the base64 data
+  const reminderSoundRef = useRef<HTMLAudioElement | null>(null);
+  const completionSoundRef = useRef<HTMLAudioElement | null>(null);
+  
+  // Initialize audio elements when component mounts
+  useEffect(() => {
+    reminderSoundRef.current = new Audio(NOTIFICATION_SOUNDS.reminder);
+    completionSoundRef.current = new Audio(NOTIFICATION_SOUNDS.completion);
+    
+    return () => {
+      // Clean up audio refs
+      if (reminderSoundRef.current) {
+        reminderSoundRef.current.pause();
+      }
+      if (completionSoundRef.current) {
+        completionSoundRef.current.pause();
+      }
+    };
+  }, []);
 
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
@@ -124,6 +150,14 @@ const StudyTimer = () => {
         saveSession.mutate(sessionDuration);
         setSessionStartTime(null);
         
+        // Play the completion sound
+        try {
+          completionSoundRef.current.currentTime = 0;
+          completionSoundRef.current.play().catch(err => console.error('Error playing completion sound:', err));
+        } catch (err) {
+          console.error('Error with audio playback:', err);
+        }
+        
         // Try to play sound when timer is finished
         try {
           // Use browser notification if available
@@ -156,6 +190,14 @@ const StudyTimer = () => {
         setActiveTab("pomodoro");
         setTime(parseInt(selectedTime) * 60);
         
+        // Play completion sound again when break is over
+        try {
+          completionSoundRef.current.currentTime = 0;
+          completionSoundRef.current.play().catch(err => console.error('Error playing completion sound:', err));
+        } catch (err) {
+          console.error('Error with audio playback:', err);
+        }
+        
         toast.info('Break time finished', {
           description: 'Ready to get back to studying?',
           duration: 5000,
@@ -169,6 +211,14 @@ const StudyTimer = () => {
       const randomIndex = Math.floor(Math.random() * REMINDER_MESSAGES.length);
       setReminderMessage(REMINDER_MESSAGES[randomIndex]);
       setShowReminder(true);
+      
+      // Play reminder sound
+      try {
+        reminderSoundRef.current.currentTime = 0;
+        reminderSoundRef.current.play().catch(err => console.error('Error playing reminder sound:', err));
+      } catch (err) {
+        console.error('Error with audio playback:', err);
+      }
       
       // Schedule next reminder
       setNextReminderTime(Date.now() + parseInt(reminderInterval) * 60 * 1000);

@@ -92,3 +92,48 @@ Yes it is!
 To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
 
 Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+
+## Progressive Web App (PWA) Support
+
+This application now supports installation as a Progressive Web App (PWA) on desktop and mobile devices. This allows users to:
+
+- Install the app directly to their device home screen or desktop
+- Access the app offline or with limited connectivity
+- Get a more app-like experience with full-screen mode
+- Receive updates automatically
+
+### How to Install the App
+
+#### On Desktop (Windows, macOS, Linux):
+
+1. Open the app in a supported browser (Chrome, Edge, or other Chromium-based browsers)
+2. Look for the install icon in the address bar, or click the three-dot menu
+3. Select "Install GateTracker" or "Install app"
+4. Follow the prompts to complete installation
+
+#### On Mobile (Android):
+
+1. Open the app in Chrome
+2. Tap the three-dot menu
+3. Select "Add to Home Screen"
+4. Follow the prompts to complete installation
+
+#### On iOS:
+
+1. Open the app in Safari
+2. Tap the Share button
+3. Scroll down and select "Add to Home Screen"
+4. Tap "Add" to confirm
+
+### Development Notes
+
+The PWA implementation includes:
+- A service worker for offline capabilities
+- A web manifest file with app metadata
+- Full support for installability on desktop and mobile
+- Custom install button for better user experience
+
+To update the PWA assets:
+1. Replace icon files in the `/public/favicons/` directory
+2. Update the `manifest.json` file with any changes to app metadata
+3. Modify the `service-worker.js` file to cache additional resources as needed

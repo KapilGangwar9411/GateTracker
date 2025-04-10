@@ -1,134 +1,103 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { User, Session, AuthError } from '@supabase/supabase-js';
-import { toast } from 'sonner';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
+// Define the shape of the context value
 type AuthContextType = {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
+// Create context with a default undefined value
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Get current session
-    const initializeAuth = async () => {
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error.message);
-          return;
-        }
-        
-        if (data.session) {
-          setSession(data.session);
-          setUser(data.session.user);
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    initializeAuth();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, currentSession) => {
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
-        setIsLoading(false);
-        
-        // Handle events
-        if (event === 'SIGNED_IN') {
-          console.log('User signed in:', currentSession?.user?.email);
-        } else if (event === 'SIGNED_OUT') {
-          console.log('User signed out');
-        }
-      }
-    );
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-    } catch (error) {
-      const authError = error as AuthError;
-      console.error('Sign in error:', authError.message);
-      throw authError;
-    }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-    } catch (error) {
-      const authError = error as AuthError;
-      console.error('Sign up error:', authError.message);
-      throw authError;
-    }
-  };
-
-  const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      // Clear user state on sign out
-      setUser(null);
-      setSession(null);
-    } catch (error) {
-      const authError = error as AuthError;
-      console.error('Sign out error:', authError.message);
-      toast.error('Error signing out', { description: authError.message });
-      throw authError;
-    }
-  };
-
-  // For development mode, use a mock user if none exists
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && !user && !isLoading) {
-      // Uncomment this for local development without auth
-      /*
-      setUser({
-        id: 'mock-user-id',
-        email: 'dev@example.com',
-        app_metadata: {},
-        user_metadata: {},
-        aud: '',
-        created_at: ''
-      } as User);
-      */
-    }
-  }, [user, isLoading]);
-
-  return (
-    <AuthContext.Provider value={{ user, session, isLoading, signIn, signUp, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
+// Named function export for the hook to improve Fast Refresh compatibility
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+}
+
+// Named function for the provider component to improve Fast Refresh compatibility
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Get the session from storage
+    async function getInitialSession() {
+      try {
+        setIsLoading(true);
+        const { data } = await supabase.auth.getSession();
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      } catch (error) {
+        console.error('Error getting initial session:', error);
+        toast({
+          title: 'Authentication Error',
+          description: 'Failed to retrieve your session. Please try refreshing the page.',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    getInitialSession();
+
+    // Set up the listener for authentication state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+
+      // When a user signs in, dispatch a custom event for PWA install popup
+      if (_event === 'SIGNED_IN') {
+        try {
+          const authEvent = new CustomEvent('auth:signed_in');
+          document.dispatchEvent(authEvent);
+        } catch (error) {
+          console.error('Error dispatching auth event:', error);
+        }
+      }
+    });
+
+    // Clean up subscription on unmount
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // Sign out function
+  const signOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: 'Signed out',
+        description: 'You have been successfully signed out.',
+      });
+    } catch (error) {
+      console.error('Error signing out:', error);
+      toast({
+        title: 'Error signing out',
+        description: 'An error occurred while signing out. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const value = {
+    user,
+    session,
+    isLoading,
+    signOut,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

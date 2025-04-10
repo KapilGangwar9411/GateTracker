@@ -28,10 +28,71 @@ const REMINDER_MESSAGES = [
 
 type ReminderMessage = typeof REMINDER_MESSAGES[number];
 
-// Base64 encoded audio for notifications (short beep sounds)
-const NOTIFICATION_SOUNDS = {
-  reminder: "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAASAAAJhgBJSUlJSUlJSUljY2NjY2NjY2N8fHx8fHx8fHyVlZWVlZWVlZWvr6+vr6+vr6/IyMjIyMjIyMji4uLi4uLi4uL7+/v7+/v7+/v///////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAABYZoqPGXAAAAAAD/+5BkAAAAAAASwAAAAAAAAkgAAAAACJoEt6ILsKHgBiJIMw8JsEAAAAAAAIAAIiIAABIkSBAAAAACIkiRPAhCEBCCIfAQOwEDsIQsQgIB8B8BABAICAgPAQ+AgAIAgAICZ+Cr/AAIAAgAAAAAgAAAAMYjn4GUhD8BAQHwAAAAM4vn4C4CAgIPgAAAAj4O/gLnwEBAT8AYxj/wFzGI+AuAgICZ+Af4CAAAAZw44CYCAgJnwAAwzgAGMBcBAQEBK/AeAZxwADAQEBATPgDgZ8AAMBAQEz4A8AwXw44CAlbAJn4CYBnAIAZ8AABcAAYAA4AAwXBwZ+GfhwIBMAmARkAuAwg=",
-  completion: "data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAASAAAJhgBJSUlJSUlJSUljY2NjY2NjY2N8fHx8fHx8fHyVlZWVlZWVlZWvr6+vr6+vr6/IyMjIyMjIyMji4uLi4uLi4uL7+/v7+/v7+/v///////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAABYb7nxBJAAAAAAD/+xBkYYAAAASwAAAAAAAAgwAAAAACHoLt6IXs5n8A8JLCTDmmEAAAEAAAIAAAJEiAAARIkAQAAAQIiRJECEISEIQB8BAHgQBwEIWIQEA+A+AgAgQEBA+BD4CAAgCAAgJn4Kv8AAIAAgAAAAAgAAAAxg8QgMZCH4CAgPgAAAAzg6AwrkICAgPgAAAAh4BkMDCuQgICZ8AABjwFwDBfIQEBPwLgGAfAAMHwgICVsAM+AOAYAATwAYOAQEr4PAJnwAAwfAgJXwA8DP8AMHwICZsAGfgBgTPwABgABA8AAmfABlwAJg+CBhYBM+AN4MYGAfgH4GfAAGA+ABMgEARhAZDEE="
+// Web Audio API sound generator
+const playSound = (type: 'reminder' | 'completion') => {
+  try {
+    // Define AudioContext for TypeScript
+    type AudioContextType = typeof window.AudioContext;
+    const AudioContext = window.AudioContext || 
+      (typeof window !== 'undefined' ? 
+        ((window as unknown).webkitAudioContext as AudioContextType) : 
+        null);
+    
+    if (!AudioContext) {
+      console.error('Web Audio API not supported in this browser');
+      return;
+    }
+    
+    const audioContext = new AudioContext();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    // Connect the nodes
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    // Set properties based on sound type
+    if (type === 'reminder') {
+      // Higher pitched, shorter beep
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 880; // A5 note
+      gainNode.gain.value = 0.2; // 20% volume
+      
+      oscillator.start();
+      
+      // Fade out for a nicer sound
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+      
+      // Stop after 0.5 seconds
+      setTimeout(() => {
+        oscillator.stop();
+        audioContext.close();
+      }, 500);
+    } else {
+      // Completion sound (two tones)
+      oscillator.type = 'sine';
+      oscillator.frequency.value = 587.33; // D5 note
+      gainNode.gain.value = 0.2;
+      
+      oscillator.start();
+      
+      // Transition to a higher note 
+      setTimeout(() => {
+        oscillator.frequency.value = 880; // A5 note
+      }, 200);
+      
+      // Fade out
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.8);
+      
+      // Stop after 0.8 seconds
+      setTimeout(() => {
+        oscillator.stop();
+        audioContext.close();
+      }, 800);
+    }
+  } catch (err) {
+    console.error('Error playing sound:', err);
+  }
 };
 
 const StudyTimer = () => {
@@ -40,7 +101,6 @@ const StudyTimer = () => {
   const [isActive, setIsActive] = useState(false);
   const [time, setTime] = useState(1500); // 25 minutes in seconds
   const [selectedTime, setSelectedTime] = useState("25");
-  const [customTime, setCustomTime] = useState(""); // Custom time input
   const [reminderInterval, setReminderInterval] = useState("15"); // Reminder interval in minutes
   const [cycles, setCycles] = useState(0);
   const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
@@ -50,26 +110,6 @@ const StudyTimer = () => {
   const [nextReminderTime, setNextReminderTime] = useState<number | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   
-  // Create audio refs using the base64 data
-  const reminderSoundRef = useRef<HTMLAudioElement | null>(null);
-  const completionSoundRef = useRef<HTMLAudioElement | null>(null);
-  
-  // Initialize audio elements when component mounts
-  useEffect(() => {
-    reminderSoundRef.current = new Audio(NOTIFICATION_SOUNDS.reminder);
-    completionSoundRef.current = new Audio(NOTIFICATION_SOUNDS.completion);
-    
-    return () => {
-      // Clean up audio refs
-      if (reminderSoundRef.current) {
-        reminderSoundRef.current.pause();
-      }
-      if (completionSoundRef.current) {
-        completionSoundRef.current.pause();
-      }
-    };
-  }, []);
-
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
     queryKey: ['study-sessions', user?.id, format(new Date(), 'yyyy-MM-dd')],
@@ -151,24 +191,15 @@ const StudyTimer = () => {
         setSessionStartTime(null);
         
         // Play the completion sound
-        try {
-          completionSoundRef.current.currentTime = 0;
-          completionSoundRef.current.play().catch(err => console.error('Error playing completion sound:', err));
-        } catch (err) {
-          console.error('Error with audio playback:', err);
-        }
+        playSound('completion');
         
-        // Try to play sound when timer is finished
+        // Try to show browser notification
         try {
-          // Use browser notification if available
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Study Timer Complete', {
               body: 'Your study session has completed!',
               icon: '/favicon.ico'
             });
-          } else {
-            // Fallback to console notification
-            console.log('Study timer complete!');
           }
         } catch (err) {
           console.error('Error showing notification:', err);
@@ -191,12 +222,7 @@ const StudyTimer = () => {
         setTime(parseInt(selectedTime) * 60);
         
         // Play completion sound again when break is over
-        try {
-          completionSoundRef.current.currentTime = 0;
-          completionSoundRef.current.play().catch(err => console.error('Error playing completion sound:', err));
-        } catch (err) {
-          console.error('Error with audio playback:', err);
-        }
+        playSound('completion');
         
         toast.info('Break time finished', {
           description: 'Ready to get back to studying?',
@@ -213,12 +239,7 @@ const StudyTimer = () => {
       setShowReminder(true);
       
       // Play reminder sound
-      try {
-        reminderSoundRef.current.currentTime = 0;
-        reminderSoundRef.current.play().catch(err => console.error('Error playing reminder sound:', err));
-      } catch (err) {
-        console.error('Error with audio playback:', err);
-      }
+      playSound('reminder');
       
       // Schedule next reminder
       setNextReminderTime(Date.now() + parseInt(reminderInterval) * 60 * 1000);
@@ -293,18 +314,6 @@ const StudyTimer = () => {
       setTime(parseInt(value) * 60);
     }
   };
-  
-  const handleCustomTimeSubmit = () => {
-    const timeInMinutes = parseInt(customTime);
-    if (!isNaN(timeInMinutes) && timeInMinutes > 0 && timeInMinutes <= 120) {
-      setSelectedTime(customTime);
-      if (!isActive) {
-        setTime(timeInMinutes * 60);
-      }
-    } else {
-      toast.error('Invalid time', { description: 'Please enter a valid time between 1 and 120 minutes' });
-    }
-  };
 
   const handleTabChange = (value: string) => {
     // If changing from an active pomodoro timer, save the session
@@ -339,87 +348,58 @@ const StudyTimer = () => {
     }
   };
 
-  // Add a function to play the sounds for testing
-  const testSounds = () => {
-    if (reminderSoundRef.current) {
-      reminderSoundRef.current.currentTime = 0;
-      reminderSoundRef.current.play()
-        .then(() => {
-          // After reminder sound finishes, play completion sound
-          setTimeout(() => {
-            if (completionSoundRef.current) {
-              completionSoundRef.current.currentTime = 0;
-              completionSoundRef.current.play()
-                .catch(err => console.error('Error playing completion sound:', err));
-            }
-          }, 1000); // Wait 1 second between sounds
-        })
-        .catch(err => console.error('Error playing reminder sound:', err));
-    }
-    
-    toast.info('Testing notification sounds', {
-      description: 'You should hear two notification sounds',
-      duration: 3000,
-    });
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Study Timer</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={testSounds}>
-            Test Sounds
-          </Button>
-          <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" onClick={() => refetchSessions()}>
-                <BarChart className="h-4 w-4 mr-2" />
-                Today's Stats
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Study Statistics</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Today's study time:</span>
-                    <span className="font-medium">{formatStudyTimeForDisplay(totalStudyTime)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Sessions completed:</span>
-                    <span className="font-medium">{todaySessions?.length || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Pomodoro cycles:</span>
-                    <span className="font-medium">{cycles}</span>
-                  </div>
+        <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" onClick={() => refetchSessions()}>
+              <BarChart className="h-4 w-4 mr-2" />
+              Today's Stats
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Study Statistics</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Today's study time:</span>
+                  <span className="font-medium">{formatStudyTimeForDisplay(totalStudyTime)}</span>
                 </div>
-                
-                <div className="space-y-2">
-                  <h4 className="text-sm font-medium">Today's sessions</h4>
-                  {todaySessions && todaySessions.length > 0 ? (
-                    <div className="space-y-2 max-h-60 overflow-y-auto">
-                      {todaySessions.map((session, index) => (
-                        <div key={session.id} className="flex justify-between text-sm border-b pb-1">
-                          <span>Session {index + 1}</span>
-                          <span>{formatStudyTimeForDisplay(session.duration)}</span>
-                          <span className="text-muted-foreground">
-                            {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No study sessions recorded today</p>
-                  )}
+                <div className="flex justify-between">
+                  <span>Sessions completed:</span>
+                  <span className="font-medium">{todaySessions?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Pomodoro cycles:</span>
+                  <span className="font-medium">{cycles}</span>
                 </div>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+              
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">Today's sessions</h4>
+                {todaySessions && todaySessions.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {todaySessions.map((session, index) => (
+                      <div key={session.id} className="flex justify-between text-sm border-b pb-1">
+                        <span>Session {index + 1}</span>
+                        <span>{formatStudyTimeForDisplay(session.duration)}</span>
+                        <span className="text-muted-foreground">
+                          {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No study sessions recorded today</p>
+                )}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
       
       <Card className="max-w-md mx-auto">
@@ -449,26 +429,6 @@ const StudyTimer = () => {
                     <SelectItem value="120">120 minutes</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              
-              <div className="flex items-center gap-2 justify-center mt-2">
-                <Input
-                  type="number"
-                  placeholder="Custom (min)"
-                  className="w-32"
-                  value={customTime}
-                  onChange={(e) => setCustomTime(e.target.value)}
-                  disabled={isActive}
-                  min="1"
-                  max="120"
-                />
-                <Button 
-                  size="sm" 
-                  onClick={handleCustomTimeSubmit} 
-                  disabled={isActive}
-                >
-                  Set
-                </Button>
               </div>
               
               <div className="flex items-center gap-2 justify-center mt-4">

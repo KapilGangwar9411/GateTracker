@@ -83,15 +83,27 @@ This project is built with:
 
 ## How can I deploy this project?
 
-Simply open [Lovable](https://lovable.dev/projects/f3d18ebd-3d0e-40db-96cd-35ff5d447d67) and click on Share -> Publish.
+You can deploy this project using any static site hosting service:
 
-## Can I connect a custom domain to my Lovable project?
+1. Build the project:
+   ```
+   npm run build
+   ```
 
-Yes it is!
+2. Deploy the contents of the `dist` folder to your preferred hosting service:
+   - Vercel
+   - Netlify
+   - GitHub Pages
+   - Firebase Hosting
+   - Any static hosting provider
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Custom Domain Setup
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+To connect a custom domain to your deployed project:
+
+1. Configure DNS settings with your domain registrar
+2. Set up the domain in your hosting provider's dashboard
+3. Verify ownership and configure SSL certificates as needed
 
 ## Progressive Web App (PWA) Support
 

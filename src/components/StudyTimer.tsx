@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
-import { Pause, Play, RotateCcw, Bell, Droplets, Coffee, Calendar, BarChart } from 'lucide-react';
+import { Pause, Play, RotateCcw, Bell, Droplets, Coffee, Calendar, BarChart, X, Move } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -21,9 +21,9 @@ const formatTime = (seconds: number): string => {
 };
 
 const REMINDER_MESSAGES = [
-  { icon: <Droplets className="h-6 w-6 mr-2" />, message: "Time to hydrate! Drink some water." },
-  { icon: <Coffee className="h-6 w-6 mr-2" />, message: "Take a short break to rest your eyes." },
-  { icon: <Bell className="h-6 w-6 mr-2" />, message: "Stand up and stretch for a minute." }
+  { icon: <Droplets className="h-5 w-5 mr-2" />, message: "Time to hydrate! Drink some water." },
+  { icon: <Coffee className="h-5 w-5 mr-2" />, message: "Take a short break to rest your eyes." },
+  { icon: <Bell className="h-5 w-5 mr-2" />, message: "Stand up and stretch for a minute." }
 ] as const;
 
 type ReminderMessage = typeof REMINDER_MESSAGES[number];
@@ -35,7 +35,7 @@ const playSound = (type: 'reminder' | 'completion') => {
     type AudioContextType = typeof window.AudioContext;
     const AudioContext = window.AudioContext || 
       (typeof window !== 'undefined' ? 
-        ((window as unknown).webkitAudioContext as AudioContextType) : 
+        ((window as { webkitAudioContext?: AudioContextType }).webkitAudioContext as AudioContextType) : 
         null);
     
     if (!AudioContext) {
@@ -95,6 +95,118 @@ const playSound = (type: 'reminder' | 'completion') => {
   }
 };
 
+// Floating Timer Component
+const FloatingTimer = ({ 
+  time, 
+  isActive, 
+  activeTab, 
+  onToggleTimer, 
+  onResetTimer, 
+  onClose 
+}: { 
+  time: number; 
+  isActive: boolean; 
+  activeTab: string;
+  onToggleTimer: () => void; 
+  onResetTimer: () => void;
+  onClose: () => void;
+}) => {
+  const [position, setPosition] = useState({ x: 20, y: 20 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const timerRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.target instanceof HTMLElement && e.target.closest('.drag-handle')) {
+      setIsDragging(true);
+      setDragStart({
+        x: e.clientX - position.x,
+        y: e.clientY - position.y
+      });
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    } else {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
+
+  return (
+    <div 
+      ref={timerRef}
+      className={`fixed z-50 bg-card border rounded-lg shadow-md p-2 w-32 transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      style={{ 
+        top: `${position.y}px`, 
+        left: `${position.x}px`,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      onMouseDown={handleMouseDown}
+    >
+      <div className="flex justify-between items-center mb-1">
+        <div className="drag-handle cursor-grab flex items-center">
+          <Move className="h-3 w-3 text-muted-foreground" />
+        </div>
+        <div className="text-xs font-medium">
+          {activeTab === "pomodoro" ? "Study" : "Break"}
+        </div>
+        <button 
+          onClick={onClose}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      </div>
+      
+      <div className="text-center mb-2">
+        <div className="text-xl font-bold">{formatTime(time)}</div>
+      </div>
+      
+      <div className="flex justify-center space-x-1">
+        <Button 
+          variant="outline" 
+          size="icon" 
+          className="h-7 w-7 rounded-full hover:bg-muted transition-colors"
+          onClick={onToggleTimer}
+        >
+          {isActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+        </Button>
+        
+        <Button 
+          variant="outline" 
+          size="icon"
+          className="h-7 w-7 rounded-full hover:bg-muted transition-colors"
+          onClick={onResetTimer}
+        >
+          <RotateCcw className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const StudyTimer = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("pomodoro");
@@ -109,6 +221,7 @@ const StudyTimer = () => {
   const [reminderMessage, setReminderMessage] = useState<ReminderMessage>(REMINDER_MESSAGES[0]);
   const [nextReminderTime, setNextReminderTime] = useState<number | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [showFloatingTimer, setShowFloatingTimer] = useState(false);
   
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
@@ -172,6 +285,52 @@ const StudyTimer = () => {
       });
     }
   });
+
+  // Handle visibility change for floating timer
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isActive) {
+        setShowFloatingTimer(true);
+      } else if (!document.hidden) {
+        setShowFloatingTimer(false);
+      }
+    };
+
+    // Add event listener for visibility change
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Check if document is already hidden when component mounts or isActive changes
+    if (document.hidden && isActive) {
+      setShowFloatingTimer(true);
+    }
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isActive]);
+
+  // Handle window focus/blur for floating timer
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      if (isActive) {
+        setShowFloatingTimer(false);
+      }
+    };
+
+    const handleWindowBlur = () => {
+      if (isActive) {
+        setShowFloatingTimer(true);
+      }
+    };
+
+    window.addEventListener('focus', handleWindowFocus);
+    window.addEventListener('blur', handleWindowBlur);
+    
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [isActive]);
 
   // Timer logic
   useEffect(() => {
@@ -277,6 +436,11 @@ const StudyTimer = () => {
         description: `Next reminder in ${reminderInterval} minutes`,
         duration: 3000,
       });
+      
+      // Check if document is hidden when timer starts
+      if (document.hidden) {
+        setShowFloatingTimer(true);
+      }
     }
     
     // If stopping a pomodoro timer, save the session
@@ -348,76 +512,102 @@ const StudyTimer = () => {
     }
   };
 
+  const toggleFloatingTimer = () => {
+    setShowFloatingTimer(!showFloatingTimer);
+  };
+
+  const closeFloatingTimer = () => {
+    setShowFloatingTimer(false);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 max-w-sm mx-auto">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Study Timer</h2>
-        <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" onClick={() => refetchSessions()}>
-              <BarChart className="h-4 w-4 mr-2" />
-              Today's Stats
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Study Statistics</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span>Today's study time:</span>
-                  <span className="font-medium">{formatStudyTimeForDisplay(totalStudyTime)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Sessions completed:</span>
-                  <span className="font-medium">{todaySessions?.length || 0}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Pomodoro cycles:</span>
-                  <span className="font-medium">{cycles}</span>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="text-sm font-medium">Today's sessions</h4>
-                {todaySessions && todaySessions.length > 0 ? (
-                  <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {todaySessions.map((session, index) => (
-                      <div key={session.id} className="flex justify-between text-sm border-b pb-1">
-                        <span>Session {index + 1}</span>
-                        <span>{formatStudyTimeForDisplay(session.duration)}</span>
-                        <span className="text-muted-foreground">
-                          {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
-                      </div>
-                    ))}
+        <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+          Study Timer
+        </h2>
+        <div className="flex gap-1">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 px-2 hover:bg-muted transition-colors"
+            onClick={toggleFloatingTimer}
+            disabled={!isActive}
+          >
+            <Move className="h-3 w-3 mr-1" />
+            <span className="text-xs">Float</span>
+          </Button>
+          <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 px-2 hover:bg-muted transition-colors">
+                <BarChart className="h-3 w-3 mr-1" />
+                <span className="text-xs">Stats</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-xs">
+              <DialogHeader>
+                <DialogTitle className="text-lg">Study Statistics</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div className="grid grid-cols-3 gap-1">
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">Study Time</p>
+                    <p className="text-sm font-semibold">{formatStudyTimeForDisplay(totalStudyTime)}</p>
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">No study sessions recorded today</p>
-                )}
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">Sessions</p>
+                    <p className="text-sm font-semibold">{todaySessions?.length || 0}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs text-muted-foreground">Cycles</p>
+                    <p className="text-sm font-semibold">{cycles}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <h4 className="text-xs font-medium">Today's Sessions</h4>
+                  {todaySessions && todaySessions.length > 0 ? (
+                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                      {todaySessions.map((session, index) => (
+                        <div key={session.id} className="flex justify-between items-center text-xs p-1 rounded-lg hover:bg-muted">
+                          <span className="font-medium">Session {index + 1}</span>
+                          <span className="text-primary">{formatStudyTimeForDisplay(session.duration)}</span>
+                          <span className="text-muted-foreground">
+                            {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No study sessions recorded today</p>
+                  )}
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       
-      <Card className="max-w-md mx-auto">
-        <CardHeader>
-          <CardTitle className="text-lg text-center">Pomodoro Timer</CardTitle>
-          <CardDescription className="text-center">Focus with timed study sessions</CardDescription>
+      <Card className="border shadow-sm bg-card">
+        <CardHeader className="pb-0 pt-3 px-3">
+          <CardTitle className="text-base text-center">Pomodoro Timer</CardTitle>
+          <CardDescription className="text-center text-xs">Focus with timed study sessions</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-2">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
-              <TabsTrigger value="pomodoro">Study</TabsTrigger>
-              <TabsTrigger value="break">Break</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-2 mb-2">
+              <TabsTrigger value="pomodoro" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1">
+                Study
+              </TabsTrigger>
+              <TabsTrigger value="break" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground text-xs py-1">
+                Break
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="pomodoro" className="space-y-4">
-              <div className="w-full flex justify-center gap-2">
+            <TabsContent value="pomodoro" className="space-y-2">
+              <div className="w-full flex justify-center gap-1">
                 <Select value={selectedTime} onValueChange={handleTimeChange} disabled={isActive}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-28 bg-background text-xs h-8">
                     <SelectValue placeholder="Study Time" />
                   </SelectTrigger>
                   <SelectContent>
@@ -431,10 +621,10 @@ const StudyTimer = () => {
                 </Select>
               </div>
               
-              <div className="flex items-center gap-2 justify-center mt-4">
-                <span className="text-sm">Reminder every:</span>
+              <div className="flex items-center gap-1 justify-center">
+                <span className="text-xs text-muted-foreground">Reminder:</span>
                 <Select value={reminderInterval} onValueChange={setReminderInterval} disabled={isActive}>
-                  <SelectTrigger className="w-28">
+                  <SelectTrigger className="w-20 bg-background text-xs h-8">
                     <SelectValue placeholder="Interval" />
                   </SelectTrigger>
                   <SelectContent>
@@ -449,83 +639,129 @@ const StudyTimer = () => {
             </TabsContent>
             
             <TabsContent value="break">
-              <p className="text-center text-muted-foreground mb-4">
-                Take a short break to recharge!
-              </p>
-              <div className="space-y-2">
-                <p className="text-sm">Suggestions:</p>
-                <ul className="text-sm space-y-2">
-                  <li className="flex items-center">• Stand up and stretch</li>
-                  <li className="flex items-center">• Drink a glass of water</li>
-                  <li className="flex items-center">• Look away from screen</li>
-                  <li className="flex items-center">• Take a few deep breaths</li>
-                </ul>
+              <div className="text-center space-y-2">
+                <p className="text-muted-foreground text-xs">
+                  Take a short break to recharge!
+                </p>
+                <div className="grid grid-cols-2 gap-1 max-w-[200px] mx-auto">
+                  <div className="p-1 rounded-lg bg-card shadow-sm">
+                    <Droplets className="h-4 w-4 mx-auto mb-0.5 text-primary" />
+                    <p className="text-[10px]">Stay hydrated</p>
+                  </div>
+                  <div className="p-1 rounded-lg bg-card shadow-sm">
+                    <Coffee className="h-4 w-4 mx-auto mb-0.5 text-amber-500" />
+                    <p className="text-[10px]">Rest your eyes</p>
+                  </div>
+                  <div className="p-1 rounded-lg bg-card shadow-sm">
+                    <Bell className="h-4 w-4 mx-auto mb-0.5 text-primary/80" />
+                    <p className="text-[10px]">Stretch</p>
+                  </div>
+                  <div className="p-1 rounded-lg bg-card shadow-sm">
+                    <Calendar className="h-4 w-4 mx-auto mb-0.5 text-primary/60" />
+                    <p className="text-[10px]">Plan ahead</p>
+                  </div>
+                </div>
               </div>
             </TabsContent>
             
-            <div className="text-center my-8">
-              <div className="mb-2">
-                <Progress value={(1 - time / (parseInt(selectedTime) * 60)) * 100} className="h-2" />
+            <div className="text-center my-2">
+              <div className="relative w-28 h-28 mx-auto mb-2">
+                <svg className="w-full h-full" viewBox="0 0 100 100">
+                  <circle
+                    className="text-muted"
+                    strokeWidth="8"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r="42"
+                    cx="50"
+                    cy="50"
+                  />
+                  <circle
+                    className="text-primary"
+                    strokeWidth="8"
+                    strokeDasharray={264}
+                    strokeDashoffset={264 - (264 * (1 - time / (parseInt(selectedTime) * 60)))}
+                    strokeLinecap="round"
+                    stroke="currentColor"
+                    fill="transparent"
+                    r="42"
+                    cx="50"
+                    cy="50"
+                  />
+                </svg>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="text-2xl font-bold">{formatTime(time)}</div>
+                </div>
               </div>
               
-              <div className="text-6xl font-semibold mb-6">{formatTime(time)}</div>
-              
-              <div className="flex justify-center space-x-4">
+              <div className="flex justify-center space-x-2">
                 <Button 
                   variant="outline" 
                   size="icon" 
-                  className="h-12 w-12"
+                  className="h-10 w-10 rounded-full hover:bg-muted transition-colors"
                   onClick={toggleTimer}
                   disabled={saveSession.isPending}
                 >
-                  {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  {isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   size="icon"
-                  className="h-12 w-12"
+                  className="h-10 w-10 rounded-full hover:bg-muted transition-colors"
                   onClick={resetTimer}
                   disabled={saveSession.isPending}
                 >
-                  <RotateCcw className="h-5 w-5" />
+                  <RotateCcw className="h-4 w-4" />
                 </Button>
               </div>
             </div>
             
-            <div className="text-center space-y-1">
-              <div className="text-sm text-muted-foreground">
+            <div className="text-center space-y-0.5">
+              <div className="text-xs text-muted-foreground">
                 Completed cycles: {cycles}
               </div>
               {totalStudyTime > 0 && (
-                <div className="text-sm">
+                <div className="text-xs font-medium text-primary">
                   Today's study time: {formatStudyTimeForDisplay(totalStudyTime)}
                 </div>
               )}
             </div>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-xs text-center text-muted-foreground max-w-xs">
-            Set a timer, stay focused, and take regular breaks. Your study time is automatically tracked.
+        <CardFooter className="flex justify-center border-t bg-muted/30 py-1">
+          <div className="text-[10px] text-center text-muted-foreground max-w-xs">
+            Set a timer, stay focused, and take regular breaks.
           </div>
         </CardFooter>
       </Card>
       
+      {/* Floating Timer */}
+      <FloatingTimer 
+        time={time}
+        isActive={isActive && showFloatingTimer}
+        activeTab={activeTab}
+        onToggleTimer={toggleTimer}
+        onResetTimer={resetTimer}
+        onClose={closeFloatingTimer}
+      />
+      
       {/* Reminder Dialog */}
       <AlertDialog open={showReminder} onOpenChange={setShowReminder}>
-        <AlertDialogContent>
+        <AlertDialogContent className="sm:max-w-xs">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center">
+            <AlertDialogTitle className="flex items-center text-base">
               {reminderMessage.icon}
               Study Reminder
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-base">
+            <AlertDialogDescription className="text-sm">
               {reminderMessage.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction>Continue Studying</AlertDialogAction>
+            <AlertDialogAction className="bg-primary hover:bg-primary/90 text-xs py-1">
+              Continue Studying
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

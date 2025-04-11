@@ -1,12 +1,28 @@
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, BrainCircuit, CheckCircle2, CircleOff, Clock } from 'lucide-react';
+import { BookOpen, BrainCircuit, CheckCircle2, CircleOff, Clock, History, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Subject, Task, StudySession, Lecture } from '@/types/database.types';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+// Define a type for the task with subject information
+interface TaskWithSubject {
+  id: string;
+  title: string;
+  subject_id: string;
+  subjects?: {
+    name: string;
+  };
+  scheduled_date: string;
+  time: string;
+  duration: string;
+  completed: boolean;
+  subject_name?: string;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -52,7 +68,7 @@ const Dashboard = () => {
       
       if (error) throw error;
       
-      return (data || []).map((task: any) => ({
+      return (data || []).map((task: TaskWithSubject) => ({
         ...task,
         subject_name: task.subjects?.name || 'No Subject'
       }));
@@ -67,6 +83,22 @@ const Dashboard = () => {
         .from('study_sessions')
         .select('duration')
         .eq('session_date', today);
+      
+      if (error) throw error;
+      
+      const totalSeconds = (data || []).reduce((acc, curr: StudySession) => acc + (curr.duration || 0), 0);
+      return (totalSeconds / 3600).toFixed(1); // Convert to hours
+    },
+    enabled: !!user
+  });
+
+  // New query for total study hours (all time)
+  const { data: totalStudyHours, isLoading: loadingTotalStudyHours } = useQuery({
+    queryKey: ['total-study-hours'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('study_sessions')
+        .select('duration');
       
       if (error) throw error;
       
@@ -113,11 +145,25 @@ const Dashboard = () => {
     return Math.round((lectureStats.completed / lectureStats.total) * 100);
   };
 
-  const completedTasksCount = todayTasks.filter((task: Task) => task.completed).length;
+  // Count completed tasks
+  const completedTasksCount = todayTasks.filter((task: TaskWithSubject) => task.completed).length;
+
+  // Check if study time is less than 3 hours
+  const isLowStudyTime = studyHours && parseFloat(studyHours) < 3;
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Dashboard</h2>
+      
+      {isLowStudyTime && (
+        <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle className="text-sm">Low Study Time</AlertTitle>
+          <AlertDescription className="text-xs">
+            You've only studied for {studyHours} hours today. Aim for at least 3 hours of daily study for better results.
+          </AlertDescription>
+        </Alert>
+      )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
@@ -157,7 +203,7 @@ const Dashboard = () => {
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -176,10 +222,22 @@ const Dashboard = () => {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Study Hours</p>
+                <p className="text-sm text-muted-foreground">Today's Study</p>
                 <p className="text-2xl font-bold">{loadingStudyHours ? '0.0' : studyHours}h</p>
               </div>
               <Clock className="h-8 w-8 text-teal-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Study Hours</p>
+                <p className="text-2xl font-bold">{loadingTotalStudyHours ? '0.0' : totalStudyHours}h</p>
+              </div>
+              <History className="h-8 w-8 text-purple-500" />
             </div>
           </CardContent>
         </Card>
@@ -219,7 +277,7 @@ const Dashboard = () => {
             {loadingTasks ? (
               <div className="text-center py-4">Loading tasks...</div>
             ) : todayTasks.length > 0 ? (
-              todayTasks.map((task: Task) => (
+              todayTasks.map((task: TaskWithSubject) => (
                 <div key={task.id} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {task.completed ? (

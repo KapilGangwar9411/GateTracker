@@ -12,7 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, subDays, startOfDay, endOfDay, subMonths, subYears, isWithinInterval } from 'date-fns';
 
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
@@ -222,6 +222,11 @@ const StudyTimer = () => {
   const [nextReminderTime, setNextReminderTime] = useState<number | null>(null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [showFloatingTimer, setShowFloatingTimer] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [historicalData, setHistoricalData] = useState<{ date: string; duration: number }[]>([]);
+  const [dateRange, setDateRange] = useState("30"); // Default to 30 days
+  const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
   
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
@@ -249,6 +254,84 @@ const StudyTimer = () => {
     enabled: !!user
   });
 
+  // Fetch historical study sessions
+  const { data: historicalSessions, refetch: refetchHistorical } = useQuery({
+    queryKey: ['historical-sessions', user?.id, dateRange, customDateRange],
+    queryFn: async () => {
+      if (!user) return null;
+      
+      let startDate: Date;
+      
+      // Determine start date based on selected range
+      switch (dateRange) {
+        case "7":
+          startDate = subDays(new Date(), 7);
+          break;
+        case "30":
+          startDate = subDays(new Date(), 30);
+          break;
+        case "90":
+          startDate = subDays(new Date(), 90);
+          break;
+        case "180":
+          startDate = subDays(new Date(), 180);
+          break;
+        case "365":
+          startDate = subDays(new Date(), 365);
+          break;
+        case "custom":
+          if (customDateRange.start) {
+            startDate = customDateRange.start;
+          } else {
+            startDate = subDays(new Date(), 30); // Default if no custom date selected
+          }
+          break;
+        default:
+          startDate = subDays(new Date(), 30);
+      }
+      
+      const { data, error } = await supabase
+        .from('study_sessions')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('created_at', startDate.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        toast.error('Error fetching historical data', { description: error.message });
+        throw error;
+      }
+      
+      // Filter by custom date range if selected
+      let filteredData = data;
+      if (dateRange === "custom" && customDateRange.start && customDateRange.end) {
+        filteredData = data.filter(session => {
+          const sessionDate = new Date(session.created_at);
+          return isWithinInterval(sessionDate, { 
+            start: customDateRange.start, 
+            end: customDateRange.end 
+          });
+        });
+      }
+      
+      // Group sessions by date
+      const groupedData = filteredData.reduce((acc: { [key: string]: number }, session) => {
+        const date = format(new Date(session.created_at), 'yyyy-MM-dd');
+        acc[date] = (acc[date] || 0) + session.duration;
+        return acc;
+      }, {});
+      
+      // Convert to array format
+      const historicalArray = Object.entries(groupedData).map(([date, duration]) => ({
+        date,
+        duration
+      }));
+      
+      return historicalArray;
+    },
+    enabled: !!user
+  });
+
   // Calculate today's total study time
   useEffect(() => {
     if (todaySessions) {
@@ -256,6 +339,13 @@ const StudyTimer = () => {
       setTotalStudyTime(total);
     }
   }, [todaySessions]);
+
+  // Update historical data when sessions change
+  useEffect(() => {
+    if (historicalSessions) {
+      setHistoricalData(historicalSessions);
+    }
+  }, [historicalSessions]);
 
   // Save a study session
   const saveSession = useMutation({
@@ -520,6 +610,14 @@ const StudyTimer = () => {
     setShowFloatingTimer(false);
   };
 
+  // Calculate total study time for the selected period
+  const totalHistoricalStudyTime = historicalData.reduce((sum, day) => sum + day.duration, 0);
+  
+  // Calculate average study time per day
+  const averageStudyTimePerDay = historicalData.length > 0 
+    ? Math.round(totalHistoricalStudyTime / historicalData.length) 
+    : 0;
+
   return (
     <div className="space-y-2 max-w-sm mx-auto">
       <div className="flex justify-between items-center">
@@ -544,14 +642,14 @@ const StudyTimer = () => {
                 <span className="text-xs">Stats</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-xs">
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle className="text-lg">Study Statistics</DialogTitle>
               </DialogHeader>
-              <div className="space-y-3 py-2">
+              <div className="space-y-4 py-2">
                 <div className="grid grid-cols-3 gap-1">
                   <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Study Time</p>
+                    <p className="text-xs text-muted-foreground">Today's Study</p>
                     <p className="text-sm font-semibold">{formatStudyTimeForDisplay(totalStudyTime)}</p>
                   </div>
                   <div className="space-y-0.5">
@@ -561,6 +659,88 @@ const StudyTimer = () => {
                   <div className="space-y-0.5">
                     <p className="text-xs text-muted-foreground">Cycles</p>
                     <p className="text-sm font-semibold">{cycles}</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="text-xs font-medium">Historical Study Time</h4>
+                    <Select value={dateRange} onValueChange={setDateRange}>
+                      <SelectTrigger className="w-32 h-7 text-xs">
+                        <SelectValue placeholder="Select range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="7">Last 7 days</SelectItem>
+                        <SelectItem value="30">Last 30 days</SelectItem>
+                        <SelectItem value="90">Last 90 days</SelectItem>
+                        <SelectItem value="180">Last 180 days</SelectItem>
+                        <SelectItem value="365">Last year</SelectItem>
+                        <SelectItem value="custom">Custom range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  {dateRange === "custom" && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <div className="flex-1">
+                        <label className="block text-muted-foreground mb-1">Start Date</label>
+                        <Input 
+                          type="date" 
+                          className="h-7 text-xs"
+                          value={customDateRange.start ? format(customDateRange.start, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value) : null;
+                            setCustomDateRange(prev => ({ ...prev, start: date }));
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-muted-foreground mb-1">End Date</label>
+                        <Input 
+                          type="date" 
+                          className="h-7 text-xs"
+                          value={customDateRange.end ? format(customDateRange.end, 'yyyy-MM-dd') : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value) : null;
+                            setCustomDateRange(prev => ({ ...prev, end: date }));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-muted/30">
+                      <p className="text-muted-foreground">Total Study Time</p>
+                      <p className="font-medium">{formatStudyTimeForDisplay(totalHistoricalStudyTime)}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-muted/30">
+                      <p className="text-muted-foreground">Average Per Day</p>
+                      <p className="font-medium">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="h-40 overflow-y-auto space-y-1">
+                    {historicalData.length > 0 ? (
+                      historicalData.map((day) => (
+                        <div 
+                          key={day.date} 
+                          className="flex justify-between items-center text-xs p-1.5 rounded-lg hover:bg-muted cursor-pointer"
+                          onClick={() => setSelectedDate(new Date(day.date))}
+                        >
+                          <span className="font-medium">
+                            {format(new Date(day.date), 'MMM dd, yyyy')}
+                          </span>
+                          <span className="text-primary font-medium">
+                            {formatStudyTimeForDisplay(day.duration)}
+                          </span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-muted-foreground text-center py-2">
+                        No study data available for the selected period
+                      </p>
+                    )}
                   </div>
                 </div>
                 

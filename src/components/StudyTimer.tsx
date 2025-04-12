@@ -430,10 +430,13 @@ const StudyTimer = () => {
       setIsActive(false);
       
       if (activeTab === "pomodoro" && sessionStartTime !== null) {
-        // Calculate the actual study duration in seconds
+        // Calculate the actual study duration in minutes
         const sessionDuration = parseInt(selectedTime) * 60;
-        saveSession.mutate(sessionDuration);
-        setSessionStartTime(null);
+        // Only save if we haven't already saved this session
+        if (sessionStartTime) {
+          saveSession.mutate(sessionDuration);
+          setSessionStartTime(null);
+        }
         
         // Play the completion sound
         playSound('completion');
@@ -541,8 +544,8 @@ const StudyTimer = () => {
   };
   
   const resetTimer = () => {
-    // If resetting an active pomodoro timer, save the session
-    if (isActive && activeTab === "pomodoro" && sessionStartTime !== null) {
+    // Only save session if it's an active pomodoro timer and hasn't been saved yet
+    if (isActive && activeTab === "pomodoro" && sessionStartTime !== null && time < parseInt(selectedTime) * 60 - 10) {
       const sessionDuration = parseInt(selectedTime) * 60 - time;
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
         saveSession.mutate(sessionDuration);
@@ -568,8 +571,8 @@ const StudyTimer = () => {
   };
 
   const handleTabChange = (value: string) => {
-    // If changing from an active pomodoro timer, save the session
-    if (activeTab === "pomodoro" && isActive && sessionStartTime !== null) {
+    // Only save session if it's an active pomodoro timer and hasn't been saved yet
+    if (activeTab === "pomodoro" && isActive && sessionStartTime !== null && time < parseInt(selectedTime) * 60 - 10) {
       const sessionDuration = parseInt(selectedTime) * 60 - time;
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
         saveSession.mutate(sessionDuration);

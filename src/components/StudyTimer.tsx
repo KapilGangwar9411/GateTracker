@@ -350,29 +350,24 @@ const StudyTimer = () => {
   // Save a study session
   const saveSession = useMutation({
     mutationFn: async (duration: number) => {
-      const { data, error } = await supabase
+      if (!user) return;
+      
+      const { error } = await supabase
         .from('study_sessions')
-        .insert([
-          {
-            user_id: user?.id,
-            duration, // in seconds
-            session_date: new Date().toISOString().split('T')[0], // Store the date
-          }
-        ])
-        .select();
+        .insert({
+          user_id: user.id,
+          duration: duration,
+          session_date: format(new Date(), 'yyyy-MM-dd')
+        });
       
       if (error) {
-        toast.error('Error saving session', { description: error.message });
+        toast.error('Error saving study session', { description: error.message });
         throw error;
       }
       
-      return data;
-    },
-    onSuccess: (_, duration) => {
+      toast.success('Study session saved', { description: `You studied for ${formatStudyTimeForDisplay(duration)}` });
       refetchSessions();
-      toast.success('Study session saved', { 
-        description: `You studied for ${Math.floor(duration / 60)} minutes` 
-      });
+      refetchHistorical();
     }
   });
 
@@ -435,7 +430,8 @@ const StudyTimer = () => {
       setIsActive(false);
       
       if (activeTab === "pomodoro" && sessionStartTime !== null) {
-        const sessionDuration = parseInt(selectedTime) * 60 - time;
+        // Calculate the actual study duration in seconds
+        const sessionDuration = parseInt(selectedTime) * 60;
         saveSession.mutate(sessionDuration);
         setSessionStartTime(null);
         
@@ -495,7 +491,9 @@ const StudyTimer = () => {
     }
     
     return () => {
-      if (interval) clearInterval(interval);
+      if (interval) {
+        clearInterval(interval);
+      }
     };
   }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime]);
 
@@ -821,8 +819,8 @@ const StudyTimer = () => {
             <TabsContent value="break">
               <div className="text-center space-y-2">
                 <p className="text-muted-foreground text-xs">
-                  Take a short break to recharge!
-                </p>
+                Take a short break to recharge!
+              </p>
                 <div className="grid grid-cols-2 gap-1 max-w-[200px] mx-auto">
                   <div className="p-1 rounded-lg bg-card shadow-sm">
                     <Droplets className="h-4 w-4 mx-auto mb-0.5 text-primary" />
@@ -887,7 +885,7 @@ const StudyTimer = () => {
                 
                 <Button 
                   variant="outline" 
-                  size="icon"
+                  size="icon" 
                   className="h-10 w-10 rounded-full hover:bg-muted transition-colors"
                   onClick={resetTimer}
                   disabled={saveSession.isPending}
@@ -899,7 +897,7 @@ const StudyTimer = () => {
             
             <div className="text-center space-y-0.5">
               <div className="text-xs text-muted-foreground">
-                Completed cycles: {cycles}
+              Completed cycles: {cycles}
               </div>
               {totalStudyTime > 0 && (
                 <div className="text-xs font-medium text-primary">

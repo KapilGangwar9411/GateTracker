@@ -14,6 +14,18 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format, subDays, startOfDay, endOfDay, subMonths, subYears, isWithinInterval } from 'date-fns';
 
+// Extend Window interface to include our session tracker
+declare global {
+  interface Window {
+    _studySessionTracker?: {[key: string]: boolean};
+  }
+}
+
+// Initialize study session tracker if not already present
+if (typeof window !== 'undefined') {
+  window._studySessionTracker = window._studySessionTracker || {};
+}
+
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -227,7 +239,24 @@ const StudyTimer = () => {
   const [dateRange, setDateRange] = useState("30"); // Default to 30 days
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
+  const [sessionSaved, setSessionSaved] = useState(false); // Track if current session has been saved
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null); // Track unique session ID
+
+  // Use useRef to maintain a record of saved sessions that persists between renders
+  const savedSessionsRef = useRef<{[key: string]: boolean}>({});
   
+  // On component mount, initialize from localStorage if available
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem('savedStudySessions');
+      if (savedData) {
+        savedSessionsRef.current = JSON.parse(savedData);
+      }
+    } catch (e) {
+      console.error('Error loading saved sessions data:', e);
+    }
+  }, []);
+
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
     queryKey: ['study-sessions', user?.id, format(new Date(), 'yyyy-MM-dd')],
@@ -352,6 +381,30 @@ const StudyTimer = () => {
     mutationFn: async (duration: number) => {
       if (!user) return;
       
+      // Generate a session ID if one doesn't exist yet
+      const sessionId = currentSessionId || `${user.id}_${Date.now()}`;
+      if (!currentSessionId) {
+        setCurrentSessionId(sessionId);
+      }
+      
+      // Check if this session has already been saved
+      if (savedSessionsRef.current[sessionId]) {
+        console.log('Session already saved, preventing duplicate save');
+        return;
+      }
+      
+      // Mark the session as saved BEFORE database operation to prevent race conditions
+      savedSessionsRef.current[sessionId] = true;
+      
+      // Persist to localStorage to prevent duplicates even after page refresh
+      try {
+        localStorage.setItem('savedStudySessions', JSON.stringify(savedSessionsRef.current));
+      } catch (e) {
+        console.error('Error saving to localStorage:', e);
+      }
+      
+      console.log(`Saving session ${sessionId} with duration ${duration} seconds`);
+      
       const { error } = await supabase
         .from('study_sessions')
         .insert({
@@ -361,13 +414,21 @@ const StudyTimer = () => {
         });
       
       if (error) {
+        // Remove from saved sessions if there was an error
+        delete savedSessionsRef.current[sessionId];
+        try {
+          localStorage.setItem('savedStudySessions', JSON.stringify(savedSessionsRef.current));
+        } catch (e) {
+          console.error('Error updating localStorage:', e);
+        }
+        
         toast.error('Error saving study session', { description: error.message });
         throw error;
+      } else {
+        toast.success('Study session saved', { description: `You studied for ${formatStudyTimeForDisplay(duration)}` });
+        refetchSessions();
+        refetchHistorical();
       }
-      
-      toast.success('Study session saved', { description: `You studied for ${formatStudyTimeForDisplay(duration)}` });
-      refetchSessions();
-      refetchHistorical();
     }
   });
 
@@ -429,14 +490,27 @@ const StudyTimer = () => {
       // Timer finished
       setIsActive(false);
       
-      if (activeTab === "pomodoro" && sessionStartTime !== null) {
+      if (activeTab === "pomodoro" && sessionStartTime !== null && !sessionSaved) {
         // Calculate the actual study duration in minutes
         const sessionDuration = parseInt(selectedTime) * 60;
-        // Only save if we haven't already saved this session
-        if (sessionStartTime) {
-          saveSession.mutate(sessionDuration);
-          setSessionStartTime(null);
+        
+        // Set saved flag first to prevent any race conditions
+        setSessionSaved(true);
+        
+        // Generate a unique ID for this completed session if not already set
+        if (!currentSessionId) {
+          setCurrentSessionId(`${user?.id || 'anon'}_${sessionStartTime}`);
         }
+        
+        // Check if already saved
+        const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
+        if (!savedSessionsRef.current[sessionId]) {
+          saveSession.mutate(sessionDuration);
+        } else {
+          console.log(`Session ${sessionId} already saved, skipping save`);
+        }
+        
+        setSessionStartTime(null);
         
         // Play the completion sound
         playSound('completion');
@@ -498,7 +572,7 @@ const StudyTimer = () => {
         clearInterval(interval);
       }
     };
-  }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime]);
+  }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime, sessionSaved, currentSessionId, user]);
 
   const toggleTimer = () => {
     const newIsActive = !isActive;
@@ -506,7 +580,13 @@ const StudyTimer = () => {
     
     // If starting a pomodoro timer, record the start time
     if (newIsActive && activeTab === "pomodoro" && !sessionStartTime) {
-      setSessionStartTime(Date.now());
+      const now = Date.now();
+      setSessionStartTime(now);
+      setSessionSaved(false);
+      
+      // Create a new session ID when starting a new timer
+      const newSessionId = `${user?.id || 'anon'}_${now}`;
+      setCurrentSessionId(newSessionId);
       
       // Schedule first reminder
       setNextReminderTime(Date.now() + parseInt(reminderInterval) * 60 * 1000);
@@ -533,28 +613,33 @@ const StudyTimer = () => {
         setShowFloatingTimer(true);
       }
     }
-    
-    // If stopping a pomodoro timer, save the session
-    if (!newIsActive && activeTab === "pomodoro" && sessionStartTime !== null) {
-      const sessionDuration = parseInt(selectedTime) * 60 - time;
-      saveSession.mutate(sessionDuration);
-      setSessionStartTime(null);
-      setNextReminderTime(null);
-    }
   };
   
   const resetTimer = () => {
-    // Only save session if it's an active pomodoro timer and hasn't been saved yet
-    if (isActive && activeTab === "pomodoro" && sessionStartTime !== null && time < parseInt(selectedTime) * 60 - 10) {
+    if (isActive && 
+        activeTab === "pomodoro" && 
+        sessionStartTime !== null && 
+        !sessionSaved && 
+        time < parseInt(selectedTime) * 60 - 10) {
+      
       const sessionDuration = parseInt(selectedTime) * 60 - time;
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
-        saveSession.mutate(sessionDuration);
+        // Check if this session has already been saved
+        const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
+        if (!savedSessionsRef.current[sessionId]) {
+          setSessionSaved(true);
+          saveSession.mutate(sessionDuration);
+        } else {
+          console.log(`Session ${sessionId} already saved during reset, skipping save`);
+        }
       }
     }
     
     setIsActive(false);
     setSessionStartTime(null);
     setNextReminderTime(null);
+    setSessionSaved(false);
+    setCurrentSessionId(null); // Reset session ID on timer reset
     
     if (activeTab === "pomodoro") {
       setTime(parseInt(selectedTime) * 60);
@@ -571,11 +656,23 @@ const StudyTimer = () => {
   };
 
   const handleTabChange = (value: string) => {
-    // Only save session if it's an active pomodoro timer and hasn't been saved yet
-    if (activeTab === "pomodoro" && isActive && sessionStartTime !== null && time < parseInt(selectedTime) * 60 - 10) {
+    // Only save session if it's an active pomodoro timer and significant time has passed
+    if (activeTab === "pomodoro" && 
+        isActive && 
+        sessionStartTime !== null && 
+        !sessionSaved && 
+        time < parseInt(selectedTime) * 60 - 10) {
+      
       const sessionDuration = parseInt(selectedTime) * 60 - time;
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
-        saveSession.mutate(sessionDuration);
+        // Check if this session has already been saved
+        const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
+        if (!savedSessionsRef.current[sessionId]) {
+          setSessionSaved(true);
+          saveSession.mutate(sessionDuration);
+        } else {
+          console.log(`Session ${sessionId} already saved during tab change, skipping save`);
+        }
       }
     }
     
@@ -583,6 +680,8 @@ const StudyTimer = () => {
     setIsActive(false);
     setSessionStartTime(null);
     setNextReminderTime(null);
+    setSessionSaved(false);
+    setCurrentSessionId(null); // Reset session ID on tab change
     
     if (value === "pomodoro") {
       setTime(parseInt(selectedTime) * 60);
@@ -792,6 +891,7 @@ const StudyTimer = () => {
                     <SelectValue placeholder="Study Time" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="2">2 minutes</SelectItem>
                     <SelectItem value="25">25 minutes</SelectItem>
                     <SelectItem value="30">30 minutes</SelectItem>
                     <SelectItem value="45">45 minutes</SelectItem>

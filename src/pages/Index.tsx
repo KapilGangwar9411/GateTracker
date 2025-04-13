@@ -9,6 +9,7 @@ import StudyTimer from "@/components/StudyTimer";
 import QuickNotes from "@/components/QuickNotes";
 import Reminders from "@/components/Reminders";
 import LectureTracker from "@/components/LectureTracker";
+import MotivationalPopup from "@/components/MotivationalPopup";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -62,6 +63,9 @@ const Index = () => {
       </div>
       
       <Footer />
+      
+      {/* Motivational Popup - outside container for proper overlay */}
+      <MotivationalPopup />
     </div>
   );
 };

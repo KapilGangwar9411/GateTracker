@@ -170,39 +170,90 @@ const SubjectLectures = () => {
 
   // Fetch and calculate deadline on component mount
   useEffect(() => {
-    if (subjectId) {
-      const deadlineKey = `subject_deadline_${subjectId}`;
-      const storedDeadline = localStorage.getItem(deadlineKey);
+    if (subjectId && user) {
+      // Fetch deadline from database instead of localStorage
+      const fetchDeadline = async () => {
+        const { data, error } = await supabase
+          .from('subject_deadlines')
+          .select('deadline_date')
+          .eq('subject_id', subjectId)
+          .eq('user_id', user.id)
+          .single();
+        
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+          console.error('Error fetching deadline:', error);
+          return;
+        }
+        
+        if (data) {
+          setDeadlineDate(data.deadline_date);
+          
+          // Calculate days remaining
+          const deadline = new Date(data.deadline_date);
+          const today = new Date();
+          const diffTime = deadline.getTime() - today.getTime();
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          setDaysRemaining(diffDays);
+        } else {
+          setDeadlineDate('');
+          setDaysRemaining(null);
+        }
+      };
       
-      if (storedDeadline) {
-        setDeadlineDate(storedDeadline);
-        
-        // Calculate days remaining
-        const deadline = new Date(storedDeadline);
-        const today = new Date();
-        const diffTime = deadline.getTime() - today.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        setDaysRemaining(diffDays);
-      } else {
-        setDeadlineDate('');
-        setDaysRemaining(null);
-      }
+      fetchDeadline();
     }
-  }, [subjectId]);
+  }, [subjectId, user]);
 
-  // Save deadline to localStorage
-  const saveDeadline = () => {
-    if (!subjectId || !deadlineDate) return;
-    
-    const deadlineKey = `subject_deadline_${subjectId}`;
-    localStorage.setItem(deadlineKey, deadlineDate);
+  // Save deadline to database
+  const saveDeadline = async () => {
+    if (!subjectId || !deadlineDate || !user) return;
     
     // Calculate days remaining
     const deadline = new Date(deadlineDate);
     const today = new Date();
     const diffTime = deadline.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Check if record already exists
+    const { data: existingData, error: checkError } = await supabase
+      .from('subject_deadlines')
+      .select('id')
+      .eq('subject_id', subjectId)
+      .eq('user_id', user.id)
+      .single();
+    
+    let error;
+    
+    if (existingData) {
+      // Update existing record
+      const { error: updateError } = await supabase
+        .from('subject_deadlines')
+        .update({ 
+          deadline_date: deadlineDate,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingData.id);
+      
+      error = updateError;
+    } else {
+      // Insert new record
+      const { error: insertError } = await supabase
+        .from('subject_deadlines')
+        .insert({
+          user_id: user.id,
+          subject_id: subjectId,
+          deadline_date: deadlineDate,
+          created_at: new Date().toISOString()
+        });
+      
+      error = insertError;
+    }
+    
+    if (error) {
+      toast.error('Error saving deadline', { description: error.message });
+      return;
+    }
     
     setDaysRemaining(diffDays);
     setIsDeadlineOpen(false);
@@ -211,11 +262,19 @@ const SubjectLectures = () => {
   };
 
   // Reset/remove deadline
-  const removeDeadline = () => {
-    if (!subjectId) return;
+  const removeDeadline = async () => {
+    if (!subjectId || !user) return;
     
-    const deadlineKey = `subject_deadline_${subjectId}`;
-    localStorage.removeItem(deadlineKey);
+    const { error } = await supabase
+      .from('subject_deadlines')
+      .delete()
+      .eq('subject_id', subjectId)
+      .eq('user_id', user.id);
+    
+    if (error) {
+      toast.error('Error removing deadline', { description: error.message });
+      return;
+    }
     
     setDeadlineDate('');
     setDaysRemaining(null);

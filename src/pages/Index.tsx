@@ -8,7 +8,6 @@ import SubjectTracker from "@/components/SubjectTracker";
 import StudyTimer from "@/components/StudyTimer";
 import QuickNotes from "@/components/QuickNotes";
 import Reminders from "@/components/Reminders";
-import LectureTracker from "@/components/LectureTracker";
 import MotivationalPopup from "@/components/MotivationalPopup";
 
 const Index = () => {
@@ -25,7 +24,6 @@ const Index = () => {
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
               <TabsTrigger value="tasks">Tasks</TabsTrigger>
               <TabsTrigger value="subjects">Subjects</TabsTrigger>
-              <TabsTrigger value="lectures">Lectures</TabsTrigger>
               <TabsTrigger value="timer">Timer</TabsTrigger>
               <TabsTrigger value="notes">Notes</TabsTrigger>
               <TabsTrigger value="reminders">Reminders</TabsTrigger>
@@ -42,10 +40,6 @@ const Index = () => {
           
           <TabsContent value="subjects">
             <SubjectTracker />
-          </TabsContent>
-          
-          <TabsContent value="lectures">
-            <LectureTracker />
           </TabsContent>
           
           <TabsContent value="timer">

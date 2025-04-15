@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Subject, Task, StudySession, Lecture } from '@/types/database.types';
+import { Subject, Task, StudySession } from '@/types/database.types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 // Define a type for the task with subject information
@@ -108,23 +108,6 @@ const Dashboard = () => {
     enabled: !!user
   });
 
-  const { data: lectureStats, isLoading: loadingLectures } = useQuery({
-    queryKey: ['lectures-stats'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('lectures')
-        .select('completed');
-      
-      if (error) throw error;
-      
-      const total = data ? data.length : 0;
-      const completed = data ? data.filter((lecture: {completed: boolean}) => lecture.completed).length : 0;
-      
-      return { total, completed };
-    },
-    enabled: !!user
-  });
-
   const { data: practiceTests, isLoading: loadingPracticeTests } = useQuery({
     queryKey: ['practice-tests'],
     queryFn: async () => {
@@ -137,12 +120,6 @@ const Dashboard = () => {
     if (loadingSubjects || !subjectsStats) return 0;
     if (subjectsStats.totalTopics === 0) return 0;
     return Math.round((subjectsStats.completedTopics / subjectsStats.totalTopics) * 100);
-  };
-
-  const calculateLectureProgress = () => {
-    if (loadingLectures || !lectureStats) return 0;
-    if (lectureStats.total === 0) return 0;
-    return Math.round((lectureStats.completed / lectureStats.total) * 100);
   };
 
   // Count completed tasks
@@ -165,7 +142,7 @@ const Dashboard = () => {
         </Alert>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Subject Progress</CardTitle>
@@ -180,24 +157,6 @@ const Dashboard = () => {
                 <span className="font-medium">{calculateProgress()}%</span>
               </div>
               <Progress value={calculateProgress()} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Lecture Progress</CardTitle>
-            <CardDescription>
-              You've completed {loadingLectures ? '...' : lectureStats?.completed} of {loadingLectures ? '...' : lectureStats?.total} lectures
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progress</span>
-                <span className="font-medium">{calculateLectureProgress()}%</span>
-              </div>
-              <Progress value={calculateLectureProgress()} className="h-2" />
             </div>
           </CardContent>
         </Card>
@@ -249,7 +208,7 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">Topics Covered</p>
                 <p className="text-2xl font-bold">{loadingSubjects ? '0' : subjectsStats?.completedTopics}</p>
               </div>
-              <BookOpen className="h-8 w-8 text-blue-500" />
+              <BookOpen className="h-8 w-8 text-indigo-500" />
             </div>
           </CardContent>
         </Card>
@@ -261,47 +220,47 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">Practice Tests</p>
                 <p className="text-2xl font-bold">{loadingPracticeTests ? '0' : practiceTests}</p>
               </div>
-              <BrainCircuit className="h-8 w-8 text-teal-500" />
+              <BrainCircuit className="h-8 w-8 text-amber-500" />
             </div>
           </CardContent>
         </Card>
       </div>
       
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Today's Tasks</CardTitle>
-          <CardDescription>Your scheduled tasks for today</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {loadingTasks ? (
-              <div className="text-center py-4">Loading tasks...</div>
-            ) : todayTasks.length > 0 ? (
-              todayTasks.map((task: TaskWithSubject) => (
-                <div key={task.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+      {/* Today's Tasks Section */}
+      <div className="space-y-2">
+        <h3 className="text-lg font-medium">Today's Tasks</h3>
+        {todayTasks.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-center">
+              <p className="text-muted-foreground">No tasks scheduled for today.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
+            {todayTasks.map((task: TaskWithSubject) => (
+              <Card key={task.id} className={`${task.completed ? 'bg-muted/40' : ''}`}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center">
                     {task.completed ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <CheckCircle2 className="h-5 w-5 mr-3 text-green-500" />
                     ) : (
-                      <CircleOff className="h-5 w-5 text-muted-foreground" />
+                      <CircleOff className="h-5 w-5 mr-3 text-muted-foreground" />
                     )}
-                    <span className={task.completed ? "line-through text-muted-foreground" : ""}>
-                      {task.title}
-                    </span>
+                    <div>
+                      <p className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                        {task.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {task.subject_name} • {task.time} • {task.duration}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-sm text-muted-foreground">
-                    {task.time} ({task.duration}h)
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                No tasks scheduled for today
-              </div>
-            )}
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };

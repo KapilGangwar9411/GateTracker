@@ -148,6 +148,9 @@ const SubjectLectures = () => {
   const [isAddLectureOpen, setIsAddLectureOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
+  const [isDeadlineOpen, setIsDeadlineOpen] = useState(false);
+  const [deadlineDate, setDeadlineDate] = useState<string>('');
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   
   // Form state for new lecture
   const [newLecture, setNewLecture] = useState<NewLecture>({
@@ -164,6 +167,62 @@ const SubjectLectures = () => {
 
   // Fetch subject info
   const subjectInfo = subjectId ? GATE_SUBJECTS[subjectId as keyof typeof GATE_SUBJECTS] : null;
+
+  // Fetch and calculate deadline on component mount
+  useEffect(() => {
+    if (subjectId) {
+      const deadlineKey = `subject_deadline_${subjectId}`;
+      const storedDeadline = localStorage.getItem(deadlineKey);
+      
+      if (storedDeadline) {
+        setDeadlineDate(storedDeadline);
+        
+        // Calculate days remaining
+        const deadline = new Date(storedDeadline);
+        const today = new Date();
+        const diffTime = deadline.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        setDaysRemaining(diffDays);
+      } else {
+        setDeadlineDate('');
+        setDaysRemaining(null);
+      }
+    }
+  }, [subjectId]);
+
+  // Save deadline to localStorage
+  const saveDeadline = () => {
+    if (!subjectId || !deadlineDate) return;
+    
+    const deadlineKey = `subject_deadline_${subjectId}`;
+    localStorage.setItem(deadlineKey, deadlineDate);
+    
+    // Calculate days remaining
+    const deadline = new Date(deadlineDate);
+    const today = new Date();
+    const diffTime = deadline.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    setDaysRemaining(diffDays);
+    setIsDeadlineOpen(false);
+    
+    toast.success('Subject deadline updated');
+  };
+
+  // Reset/remove deadline
+  const removeDeadline = () => {
+    if (!subjectId) return;
+    
+    const deadlineKey = `subject_deadline_${subjectId}`;
+    localStorage.removeItem(deadlineKey);
+    
+    setDeadlineDate('');
+    setDaysRemaining(null);
+    setIsDeadlineOpen(false);
+    
+    toast.success('Subject deadline removed');
+  };
 
   // Fetch lectures for this subject
   const { data: dbLectures = [], isLoading } = useQuery({
@@ -461,70 +520,61 @@ const SubjectLectures = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
+    <div className="container mx-auto max-w-5xl p-4">
+      {/* Header Section - With Deadline */}
+      <div className="flex flex-col gap-2 mb-8 border-b pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <h1 className="text-2xl font-bold">{subjectInfo?.name}</h1>
+          </div>
+          
+          <Button 
+            onClick={() => setIsAddLectureOpen(true)}
+            size="sm"
+            className="ml-auto"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Lecture
           </Button>
-          <h1 className="text-2xl font-bold">{subjectInfo.name}</h1>
         </div>
         
-        <Dialog open={isAddLectureOpen} onOpenChange={setIsAddLectureOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Lecture</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <Label htmlFor="title">Lecture Title</Label>
-                <Input 
-                  id="title" 
-                  value={newLecture.title}
-                  onChange={(e) => setNewLecture({...newLecture, title: e.target.value})}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
-                  value={newLecture.description}
-                  onChange={(e) => setNewLecture({...newLecture, description: e.target.value})}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Importance</Label>
-                <div className="flex gap-2">
-                  {['low', 'medium', 'high'].map((level) => (
-                    <Button 
-                      key={level} 
-                      type="button"
-                      variant={newLecture.importance === level ? 'default' : 'outline'}
-                      onClick={() => setNewLecture({...newLecture, importance: level as 'high' | 'medium' | 'low'})}
-                      className="flex-1"
-                    >
-                      {level.charAt(0).toUpperCase() + level.slice(1)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" onClick={() => setIsAddLectureOpen(false)}>Cancel</Button>
-                <Button onClick={handleAddLecture} disabled={createLecture.isPending}>
-                  {createLecture.isPending ? 'Adding...' : 'Add Lecture'}
-                </Button>
-              </div>
+        {/* Deadline display and setting */}
+        <div className="flex items-center justify-between mt-2">
+          {daysRemaining !== null ? (
+            <div className="flex items-center gap-2">
+              <Badge variant={daysRemaining > 7 ? "outline" : daysRemaining > 3 ? "default" : "destructive"}>
+                <Calendar className="h-3 w-3 mr-1" />
+                {daysRemaining <= 0 
+                  ? "Deadline passed" 
+                  : `${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} remaining`}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                Deadline: {format(new Date(deadlineDate), 'MMM dd, yyyy')}
+              </span>
             </div>
-          </DialogContent>
-        </Dialog>
+          ) : (
+            <span className="text-xs text-muted-foreground">No deadline set</span>
+          )}
+          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setIsDeadlineOpen(true)}
+            className="h-7 px-2"
+          >
+            <Clock className="h-3 w-3 mr-1" />
+            {deadlineDate ? 'Update Deadline' : 'Set Deadline'}
+          </Button>
+        </div>
       </div>
       
-      {/* Filters Section */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
+      {/* Filters Section - More compact */}
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 mb-6">
+        <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search lectures..."
@@ -534,20 +584,11 @@ const SubjectLectures = () => {
           />
         </div>
         
-        <Button 
-          onClick={() => setIsAddLectureOpen(true)}
-          className="sm:self-start"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Lecture
-        </Button>
-        
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-center">
           <Button 
             variant={statusFilter === 'all' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('all')}
-            className="flex-1 sm:flex-none"
           >
             All
           </Button>
@@ -555,7 +596,6 @@ const SubjectLectures = () => {
             variant={statusFilter === 'completed' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('completed')}
-            className="flex-1 sm:flex-none"
           >
             Completed
           </Button>
@@ -563,7 +603,6 @@ const SubjectLectures = () => {
             variant={statusFilter === 'incomplete' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('incomplete')}
-            className="flex-1 sm:flex-none"
           >
             Incomplete
           </Button>
@@ -571,243 +610,295 @@ const SubjectLectures = () => {
             variant={statusFilter === 'revised' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('revised')}
-            className="flex-1 sm:flex-none"
           >
             Revised
           </Button>
         </div>
       </div>
       
-      {/* Lecture Cards */}
+      {/* Lecture Cards - Streamlined design */}
       {isLoading ? (
-        <div className="text-center py-12">
+        <div className="text-center py-6">
           <p className="text-muted-foreground">Loading lectures...</p>
         </div>
       ) : filteredLectures.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">No lectures found. Add your first lecture to start tracking.</p>
-            <Button onClick={() => setIsAddLectureOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Lecture
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="bg-muted/20 rounded-lg p-8 text-center">
+          <p className="text-muted-foreground mb-4">No lectures found. Add your first lecture to start tracking.</p>
+          <Button onClick={() => setIsAddLectureOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Lecture
+          </Button>
+        </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-2">
           {filteredLectures.map((lecture, index) => (
-            <Card key={lecture.id} className={`overflow-hidden ${lecture.completed ? 'bg-muted/30' : ''}`}>
-              <div className={`h-1 bg-gradient-to-r ${subjectInfo.color}`}></div>
-              <CardHeader className="p-4 pb-0">
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div>
-                    <CardTitle className={`text-lg ${lecture.completed ? 'text-muted-foreground' : ''}`}>
+            <Card key={lecture.id} className={`border-l-4 ${
+              lecture.completed 
+                ? 'border-l-green-500 bg-muted/10' 
+                : 'border-l-primary'
+            }`}>
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="flex items-center">
                       <span className="inline-flex items-center justify-center w-6 h-6 mr-2 text-xs font-medium rounded-full bg-muted text-muted-foreground">
                         {index + 1}
                       </span>
-                      {lecture.title}
-                    </CardTitle>
+                      <h3 className={`font-medium ${lecture.completed ? 'text-muted-foreground' : ''}`}>
+                        {lecture.title}
+                      </h3>
+                    </div>
+                    
+                    {lecture.description && (
+                      <p className="text-sm text-muted-foreground mt-1 ml-8">
+                        {lecture.description}
+                      </p>
+                    )}
+                    
                     {lecture.scheduled_date && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-8">
                         <Calendar className="h-3 w-3" />
                         <span>
-                          Scheduled: {lecture.scheduled_date}
+                          {lecture.scheduled_date}
                           {lecture.scheduled_time && ` at ${lecture.scheduled_time}`}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex flex-wrap gap-1">
-                      <Badge variant={lecture.importance === 'high' ? 'destructive' : lecture.importance === 'medium' ? 'default' : 'outline'}>
-                        {lecture.importance}
-                      </Badge>
-                      {lecture.completed && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-200">
-                          Completed
-                        </Badge>
+                  
+                  <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                    <div className="flex items-center gap-1">
+                      {lecture.importance === 'high' && (
+                        <Badge variant="destructive" className="h-6">High</Badge>
                       )}
-                      {lecture.revised && (
-                        <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-200">
-                          Revised
-                        </Badge>
+                      {lecture.importance === 'medium' && (
+                        <Badge variant="default" className="h-6">Medium</Badge>
+                      )}
+                      {lecture.importance === 'low' && (
+                        <Badge variant="outline" className="h-6">Low</Badge>
                       )}
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleDeleteLecture(lecture.id, lecture.title)}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive ml-1"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                {lecture.description && (
-                  <p className={`text-sm mb-4 ${lecture.completed ? 'text-muted-foreground' : ''}`}>
-                    {lecture.description}
-                  </p>
-                )}
-                
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <Button 
-                    variant={lecture.completed ? "default" : "outline"} 
-                    size="sm"
-                    onClick={() => toggleLectureStatus.mutate({ 
-                      id: lecture.id, 
-                      field: 'completed', 
-                      value: !lecture.completed 
-                    })}
-                    className="flex-1"
-                  >
-                    <Check className="h-4 w-4 mr-2" />
-                    {lecture.completed ? 'Completed' : 'Mark Complete'}
-                  </Button>
-                  
-                  <Button 
-                    variant={lecture.revised ? "default" : "outline"} 
-                    size="sm"
-                    onClick={() => toggleLectureStatus.mutate({ 
-                      id: lecture.id, 
-                      field: 'revised', 
-                      value: !lecture.revised 
-                    })}
-                    className="flex-1"
-                  >
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    {lecture.revised ? 'Revised' : 'Mark Revised'}
-                  </Button>
-                  
-                  <Dialog>
-                    <DialogTrigger asChild>
+                    
+                    <div className="flex items-center gap-1 ml-auto md:ml-0">
                       <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedLecture(lecture);
-                          
-                          // Get schedule from localStorage
-                          const scheduleKey = `lecture_schedule_${lecture.id}`;
-                          const scheduleInfo = localStorage.getItem(scheduleKey);
-                          let date = format(new Date(), 'yyyy-MM-dd');
-                          let time = '09:00';
-                          
-                          if (scheduleInfo) {
-                            try {
-                              const parsed = JSON.parse(scheduleInfo);
-                              date = parsed.date || date;
-                              time = parsed.time || time;
-                            } catch (e) {
-                              console.error('Error parsing schedule info', e);
-                            }
-                          }
-                          
-                          setScheduleDate(date);
-                          setScheduleTime(time);
-                          
-                          // Check localStorage for notification preference
-                          const notificationKey = `lecture_notification_${lecture.id}`;
-                          const hasNotification = localStorage.getItem(notificationKey) === 'true';
-                          setEnableNotification(hasNotification || true);
-                          setIsScheduleOpen(true);
-                        }}
-                        className="flex-1"
+                        variant={lecture.completed ? "default" : "outline"} 
+                        size="icon"
+                        className={`h-8 w-8 rounded-full ${lecture.completed ? "bg-green-500 hover:bg-green-600 text-white border-0" : "hover:text-green-600 hover:border-green-600"}`}
+                        onClick={() => toggleLectureStatus.mutate({ 
+                          id: lecture.id, 
+                          field: 'completed', 
+                          value: !lecture.completed 
+                        })}
+                        title={lecture.completed ? "Mark as incomplete" : "Mark as complete"}
                       >
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Schedule
+                        <Check className="h-4 w-4" />
                       </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Schedule Lecture</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-2">
-                        <div className="space-y-2">
-                          <Label htmlFor="date">Select Date</Label>
-                          <Input 
-                            id="date" 
-                            type="date"
-                            value={scheduleDate}
-                            onChange={(e) => setScheduleDate(e.target.value)}
-                            min={format(new Date(), 'yyyy-MM-dd')}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="time">Select Time</Label>
-                          <Input 
-                            id="time" 
-                            type="time"
-                            value={scheduleTime}
-                            onChange={(e) => setScheduleTime(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id="enableNotification"
-                              checked={enableNotification}
-                              onChange={(e) => setEnableNotification(e.target.checked)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                            />
-                            <Label htmlFor="enableNotification">Enable notification alarm</Label>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            You'll receive a notification on your phone when it's time for this lecture.
-                          </p>
-                          {enableNotification && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="mt-2"
-                              onClick={() => {
-                                // Request permission if not granted
-                                if (Notification.permission !== 'granted') {
-                                  Notification.requestPermission().then(permission => {
-                                    if (permission === 'granted') {
-                                      new Notification('Test Notification', {
-                                        body: 'Notifications are working! You will be notified when your lecture starts.',
-                                        icon: '/favicons/apple-touch-icon.png'
-                                      });
-                                    } else {
-                                      toast.error('Notification permission denied. Please enable notifications in your browser settings.');
-                                    }
-                                  });
-                                } else {
-                                  // Show test notification
-                                  new Notification('Test Notification', {
-                                    body: 'Notifications are working! You will be notified when your lecture starts.',
-                                    icon: '/favicons/apple-touch-icon.png'
-                                  });
-                                }
-                              }}
-                            >
-                              Test Notification
-                            </Button>
-                          )}
-                        </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                          <DialogClose asChild>
-                            <Button variant="outline">Cancel</Button>
-                          </DialogClose>
+                      
+                      <Button 
+                        variant={lecture.revised ? "default" : "outline"} 
+                        size="icon"
+                        className={`h-8 w-8 rounded-full ${lecture.revised ? "bg-blue-500 hover:bg-blue-600 text-white border-0" : "hover:text-blue-600 hover:border-blue-600"}`}
+                        onClick={() => toggleLectureStatus.mutate({ 
+                          id: lecture.id, 
+                          field: 'revised', 
+                          value: !lecture.revised 
+                        })}
+                        title={lecture.revised ? "Mark as not revised" : "Mark as revised"}
+                      >
+                        <BookOpen className="h-4 w-4" />
+                      </Button>
+                      
+                      <Dialog>
+                        <DialogTrigger asChild>
                           <Button 
-                            onClick={handleScheduleLecture} 
-                            disabled={scheduleLecture.isPending}
+                            variant="outline" 
+                            size="icon"
+                            className="h-8 w-8 rounded-full hover:text-amber-600 hover:border-amber-600"
+                            onClick={() => {
+                              setSelectedLecture(lecture);
+                              
+                              // Get schedule from localStorage
+                              const scheduleKey = `lecture_schedule_${lecture.id}`;
+                              const scheduleInfo = localStorage.getItem(scheduleKey);
+                              let date = format(new Date(), 'yyyy-MM-dd');
+                              let time = '09:00';
+                              
+                              if (scheduleInfo) {
+                                try {
+                                  const parsed = JSON.parse(scheduleInfo);
+                                  date = parsed.date || date;
+                                  time = parsed.time || time;
+                                } catch (e) {
+                                  console.error('Error parsing schedule info', e);
+                                }
+                              }
+                              
+                              setScheduleDate(date);
+                              setScheduleTime(time);
+                              
+                              // Check localStorage for notification preference
+                              const notificationKey = `lecture_notification_${lecture.id}`;
+                              const hasNotification = localStorage.getItem(notificationKey) === 'true';
+                              setEnableNotification(hasNotification || true);
+                              setIsScheduleOpen(true);
+                            }}
+                            title="Schedule lecture"
                           >
-                            {scheduleLecture.isPending ? 'Scheduling...' : 'Schedule'}
+                            <Calendar className="h-4 w-4" />
                           </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Schedule Lecture</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-2">
+                            <div className="space-y-2">
+                              <Label htmlFor="date">Select Date</Label>
+                              <Input 
+                                id="date" 
+                                type="date"
+                                value={scheduleDate}
+                                onChange={(e) => setScheduleDate(e.target.value)}
+                                min={format(new Date(), 'yyyy-MM-dd')}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="time">Select Time</Label>
+                              <Input 
+                                id="time" 
+                                type="time"
+                                value={scheduleTime}
+                                onChange={(e) => setScheduleTime(e.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="checkbox"
+                                  id="enableNotification"
+                                  checked={enableNotification}
+                                  onChange={(e) => setEnableNotification(e.target.checked)}
+                                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                                />
+                                <Label htmlFor="enableNotification">Enable notification</Label>
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <DialogClose asChild>
+                                <Button variant="outline">Cancel</Button>
+                              </DialogClose>
+                              <Button 
+                                onClick={handleScheduleLecture} 
+                                disabled={scheduleLecture.isPending}
+                              >
+                                {scheduleLecture.isPending ? 'Scheduling...' : 'Schedule'}
+                              </Button>
+                            </div>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                      
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteLecture(lecture.id, lecture.title)}
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+      
+      {/* Add Lecture Dialog */}
+      <Dialog open={isAddLectureOpen} onOpenChange={setIsAddLectureOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Lecture</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="title">Lecture Title</Label>
+              <Input 
+                id="title" 
+                value={newLecture.title}
+                onChange={(e) => setNewLecture({...newLecture, title: e.target.value})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea 
+                id="description" 
+                value={newLecture.description}
+                onChange={(e) => setNewLecture({...newLecture, description: e.target.value})}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Importance</Label>
+              <div className="flex gap-2">
+                {['low', 'medium', 'high'].map((level) => (
+                  <Button 
+                    key={level} 
+                    type="button"
+                    variant={newLecture.importance === level ? 'default' : 'outline'}
+                    onClick={() => setNewLecture({...newLecture, importance: level as 'high' | 'medium' | 'low'})}
+                    className="flex-1"
+                  >
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setIsAddLectureOpen(false)}>Cancel</Button>
+              <Button onClick={handleAddLecture} disabled={createLecture.isPending}>
+                {createLecture.isPending ? 'Adding...' : 'Add Lecture'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Add Deadline Dialog */}
+      <Dialog open={isDeadlineOpen} onOpenChange={setIsDeadlineOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{deadlineDate ? 'Update' : 'Set'} Subject Deadline</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="deadline">Target completion date</Label>
+              <Input 
+                id="deadline" 
+                type="date"
+                value={deadlineDate}
+                onChange={(e) => setDeadlineDate(e.target.value)}
+                min={format(new Date(), 'yyyy-MM-dd')}
+              />
+              <p className="text-xs text-muted-foreground">Set a deadline to track your progress for this subject</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              {deadlineDate && (
+                <Button variant="outline" onClick={removeDeadline} className="mr-auto">
+                  Remove
+                </Button>
+              )}
+              <Button variant="outline" onClick={() => setIsDeadlineOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={saveDeadline} disabled={!deadlineDate}>
+                Save
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

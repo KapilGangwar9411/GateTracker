@@ -594,18 +594,27 @@ const SubjectLectures = () => {
           <Button 
             onClick={() => setIsAddLectureOpen(true)}
             size="sm"
-            className="ml-auto"
+            className="ml-auto hidden sm:flex"
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Lecture
           </Button>
+          
+          <Button 
+            onClick={() => setIsAddLectureOpen(true)}
+            size="icon"
+            className="ml-auto sm:hidden h-8 w-8"
+            aria-label="Add Lecture"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
         </div>
         
-        {/* Deadline display and setting */}
-        <div className="flex items-center justify-between mt-2">
+        {/* Deadline display and setting - Improved for mobile */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-2 gap-2">
           {daysRemaining !== null ? (
-            <div className="flex items-center gap-2">
-              <Badge variant={daysRemaining > 7 ? "outline" : daysRemaining > 3 ? "default" : "destructive"}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={daysRemaining > 7 ? "outline" : daysRemaining > 3 ? "default" : "destructive"} className="whitespace-nowrap">
                 <Calendar className="h-3 w-3 mr-1" />
                 {daysRemaining <= 0 
                   ? "Deadline passed" 
@@ -623,7 +632,7 @@ const SubjectLectures = () => {
             variant="outline" 
             size="sm" 
             onClick={() => setIsDeadlineOpen(true)}
-            className="h-7 px-2"
+            className="h-7 px-2 self-start sm:self-auto"
           >
             <Clock className="h-3 w-3 mr-1" />
             {deadlineDate ? 'Update Deadline' : 'Set Deadline'}
@@ -631,8 +640,8 @@ const SubjectLectures = () => {
         </div>
       </div>
       
-      {/* Filters Section - More compact */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 mb-6">
+      {/* Filters Section - More responsive for mobile */}
+      <div className="grid grid-cols-1 gap-4 mb-6">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
@@ -643,11 +652,12 @@ const SubjectLectures = () => {
           />
         </div>
         
-        <div className="flex gap-1 items-center">
+        <div className="flex flex-wrap gap-1 items-center justify-center sm:justify-start">
           <Button 
             variant={statusFilter === 'all' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('all')}
+            className="h-7 px-2"
           >
             All
           </Button>
@@ -655,6 +665,7 @@ const SubjectLectures = () => {
             variant={statusFilter === 'completed' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('completed')}
+            className="h-7 px-2"
           >
             Completed
           </Button>
@@ -662,6 +673,7 @@ const SubjectLectures = () => {
             variant={statusFilter === 'incomplete' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('incomplete')}
+            className="h-7 px-2"
           >
             Incomplete
           </Button>
@@ -669,6 +681,7 @@ const SubjectLectures = () => {
             variant={statusFilter === 'revised' ? 'default' : 'outline'} 
             size="sm" 
             onClick={() => setStatusFilter('revised')}
+            className="h-7 px-2"
           >
             Revised
           </Button>
@@ -677,16 +690,31 @@ const SubjectLectures = () => {
       
       {/* Lecture Cards - Streamlined design */}
       {isLoading ? (
-        <div className="text-center py-6">
-          <p className="text-muted-foreground">Loading lectures...</p>
+        <div className="flex justify-center items-center p-8">
+          <p>Loading lectures...</p>
         </div>
       ) : filteredLectures.length === 0 ? (
-        <div className="bg-muted/20 rounded-lg p-8 text-center">
-          <p className="text-muted-foreground mb-4">No lectures found. Add your first lecture to start tracking.</p>
-          <Button onClick={() => setIsAddLectureOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Lecture
-          </Button>
+        <div className="flex flex-col items-center justify-center p-4 sm:p-8 text-center">
+          <BookOpen className="h-8 w-8 text-muted-foreground mb-2" />
+          <h3 className="text-base sm:text-lg font-medium">No lectures found</h3>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-xs mx-auto">
+            {searchQuery 
+              ? `No results for "${searchQuery}"`
+              : statusFilter !== 'all'
+                ? `No ${statusFilter} lectures found`
+                : "Add your first lecture to get started"
+            }
+          </p>
+          {!searchQuery && statusFilter === 'all' && (
+            <Button 
+              onClick={() => setIsAddLectureOpen(true)} 
+              className="mt-4"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Lecture
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid gap-2">
@@ -703,13 +731,13 @@ const SubjectLectures = () => {
                       <span className="inline-flex items-center justify-center w-6 h-6 mr-2 text-xs font-medium rounded-full bg-muted text-muted-foreground">
                         {index + 1}
                       </span>
-                      <h3 className={`font-medium ${lecture.completed ? 'text-muted-foreground' : ''}`}>
+                      <h3 className={`font-medium ${lecture.completed ? 'text-muted-foreground' : ''} text-sm sm:text-base`}>
                         {lecture.title}
                       </h3>
                     </div>
                     
                     {lecture.description && (
-                      <p className="text-sm text-muted-foreground mt-1 ml-8">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-1 ml-8">
                         {lecture.description}
                       </p>
                     )}
@@ -725,7 +753,7 @@ const SubjectLectures = () => {
                     )}
                   </div>
                   
-                  <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+                  <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-0 ml-8 md:ml-0">
                     <div className="flex items-center gap-1">
                       {lecture.importance === 'high' && (
                         <Badge variant="destructive" className="h-6">High</Badge>
@@ -738,7 +766,7 @@ const SubjectLectures = () => {
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-1 ml-auto md:ml-0">
+                    <div className="flex items-center gap-1 ml-auto md:ml-2">
                       <Button 
                         variant={lecture.completed ? "default" : "outline"} 
                         size="icon"

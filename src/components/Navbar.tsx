@@ -30,7 +30,10 @@ const Navbar = () => {
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-2">
           <BookOpen className="h-6 w-6 text-green-600" />
-          <span className="text-xl font-bold text-green-600 font-['Bricolage_Grotesque',sans-serif]">GATE Prep Tracker</span>
+          <span className="text-xl font-bold text-green-600 font-['Bricolage_Grotesque',sans-serif]">
+            <span className="hidden sm:inline">GATE Prep Tracker</span>
+            <span className="sm:hidden">GPtracker</span>
+          </span>
         </div>
         
         {user && (

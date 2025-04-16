@@ -219,19 +219,56 @@ const FloatingTimer = ({
   );
 };
 
+// Add this timer state interface after the REMINDER_MESSAGES declaration
+interface TimerState {
+  isActive: boolean;
+  activeTab: string;
+  time: number;
+  selectedTime: string;
+  cycles: number;
+  sessionStartTime: number | null;
+  targetEndTime: number | null;
+  nextReminderTime: number | null;
+  reminderInterval: string;
+  sessionSaved: boolean;
+  currentSessionId: string | null;
+}
+
+// Add this interface below the TimerState interface
+interface SavedSessions {
+  [key: string]: boolean;
+}
+
 const StudyTimer = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState("pomodoro");
-  const [isActive, setIsActive] = useState(false);
-  const [time, setTime] = useState(1500); // 25 minutes in seconds
-  const [selectedTime, setSelectedTime] = useState("25");
-  const [reminderInterval, setReminderInterval] = useState("15"); // Reminder interval in minutes
-  const [cycles, setCycles] = useState(0);
-  const [sessionStartTime, setSessionStartTime] = useState<number | null>(null);
+  
+  // Load persisted timer state from localStorage
+  const loadTimerState = (): TimerState | null => {
+    try {
+      const savedState = localStorage.getItem('timerState');
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (e) {
+      console.error('Error loading timer state:', e);
+    }
+    return null;
+  };
+  
+  // Get persisted state or initialize with defaults
+  const persistedState = loadTimerState();
+  
+  const [activeTab, setActiveTab] = useState(persistedState?.activeTab || "pomodoro");
+  const [isActive, setIsActive] = useState(false); // Start as inactive, we'll check in useEffect
+  const [time, setTime] = useState(persistedState?.time || 1500); // 25 minutes in seconds
+  const [selectedTime, setSelectedTime] = useState(persistedState?.selectedTime || "25");
+  const [reminderInterval, setReminderInterval] = useState(persistedState?.reminderInterval || "15"); // Reminder interval in minutes
+  const [cycles, setCycles] = useState(persistedState?.cycles || 0);
+  const [sessionStartTime, setSessionStartTime] = useState<number | null>(persistedState?.sessionStartTime || null);
   const [totalStudyTime, setTotalStudyTime] = useState(0);
   const [showReminder, setShowReminder] = useState(false);
   const [reminderMessage, setReminderMessage] = useState<ReminderMessage>(REMINDER_MESSAGES[0]);
-  const [nextReminderTime, setNextReminderTime] = useState<number | null>(null);
+  const [nextReminderTime, setNextReminderTime] = useState<number | null>(persistedState?.nextReminderTime || null);
   const [statsDialogOpen, setStatsDialogOpen] = useState(false);
   const [showFloatingTimer, setShowFloatingTimer] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -239,23 +276,108 @@ const StudyTimer = () => {
   const [dateRange, setDateRange] = useState("30"); // Default to 30 days
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(false);
-  const [sessionSaved, setSessionSaved] = useState(false); // Track if current session has been saved
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null); // Track unique session ID
+  const [sessionSaved, setSessionSaved] = useState(persistedState?.sessionSaved || false); // Track if current session has been saved
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(persistedState?.currentSessionId || null); // Track unique session ID
 
-  // Use useRef to maintain a record of saved sessions that persists between renders
-  const savedSessionsRef = useRef<{[key: string]: boolean}>({});
-  
-  // On component mount, initialize from localStorage if available
-  useEffect(() => {
+  // Add these new state variables and refs
+  const timerStartRef = useRef<number | null>(persistedState?.targetEndTime ? Date.now() - ((persistedState.targetEndTime - Date.now()) - persistedState.time * 1000) : null);
+  const lastUpdateTimeRef = useRef<number>(Date.now());
+  const targetEndTimeRef = useRef<number | null>(persistedState?.targetEndTime || null);
+  const initialDurationRef = useRef<number>(persistedState?.time || 1500);
+
+  // Add this function to check if a session is saved
+  const isSessionSaved = (sessionId: string): boolean => {
     try {
       const savedData = localStorage.getItem('savedStudySessions');
       if (savedData) {
-        savedSessionsRef.current = JSON.parse(savedData);
+        const savedSessions = JSON.parse(savedData) as SavedSessions;
+        return !!savedSessions[sessionId];
       }
     } catch (e) {
-      console.error('Error loading saved sessions data:', e);
+      console.error('Error checking saved session:', e);
+    }
+    return false;
+  };
+
+  // Add this function to mark a session as saved
+  const markSessionSaved = (sessionId: string): void => {
+    try {
+      const savedData = localStorage.getItem('savedStudySessions');
+      const savedSessions: SavedSessions = savedData ? JSON.parse(savedData) : {};
+      savedSessions[sessionId] = true;
+      localStorage.setItem('savedStudySessions', JSON.stringify(savedSessions));
+    } catch (e) {
+      console.error('Error marking session as saved:', e);
+    }
+  };
+
+  // Add this function to remove a session from saved
+  const removeSessionSaved = (sessionId: string): void => {
+    try {
+      const savedData = localStorage.getItem('savedStudySessions');
+      if (savedData) {
+        const savedSessions = JSON.parse(savedData) as SavedSessions;
+        delete savedSessions[sessionId];
+        localStorage.setItem('savedStudySessions', JSON.stringify(savedSessions));
+      }
+    } catch (e) {
+      console.error('Error removing saved session:', e);
+    }
+  };
+
+  // Save timer state to localStorage
+  const saveTimerState = () => {
+    try {
+      const stateToSave: TimerState = {
+        isActive,
+        activeTab,
+        time,
+        selectedTime,
+        cycles,
+        sessionStartTime,
+        targetEndTime: targetEndTimeRef.current,
+        nextReminderTime,
+        reminderInterval,
+        sessionSaved,
+        currentSessionId
+      };
+      localStorage.setItem('timerState', JSON.stringify(stateToSave));
+    } catch (e) {
+      console.error('Error saving timer state:', e);
+    }
+  };
+
+  // Activate timer on component mount if it was active before
+  useEffect(() => {
+    if (persistedState?.isActive && targetEndTimeRef.current !== null) {
+      // Calculate the correct remaining time
+      const now = Date.now();
+      const remaining = Math.max(0, Math.floor((targetEndTimeRef.current - now) / 1000));
+      
+      if (remaining > 0) {
+        setTime(remaining);
+        setIsActive(true);
+      } else {
+        // Timer would have finished while away
+        setTime(0);
+      }
     }
   }, []);
+
+  // Save timer state whenever key values change
+  useEffect(() => {
+    saveTimerState();
+  }, [isActive, time, activeTab, selectedTime, cycles, sessionStartTime, nextReminderTime, sessionSaved, currentSessionId]);
+
+  // Clean up timer state when component unmounts
+  useEffect(() => {
+    return () => {
+      // Only update localStorage, don't clear it
+      if (isActive) {
+        saveTimerState();
+      }
+    };
+  }, [isActive]);
 
   // Fetch today's study sessions
   const { data: todaySessions, refetch: refetchSessions } = useQuery({
@@ -388,20 +510,13 @@ const StudyTimer = () => {
       }
       
       // Check if this session has already been saved
-      if (savedSessionsRef.current[sessionId]) {
+      if (isSessionSaved(sessionId)) {
         console.log('Session already saved, preventing duplicate save');
         return;
       }
       
       // Mark the session as saved BEFORE database operation to prevent race conditions
-      savedSessionsRef.current[sessionId] = true;
-      
-      // Persist to localStorage to prevent duplicates even after page refresh
-      try {
-        localStorage.setItem('savedStudySessions', JSON.stringify(savedSessionsRef.current));
-      } catch (e) {
-        console.error('Error saving to localStorage:', e);
-      }
+      markSessionSaved(sessionId);
       
       console.log(`Saving session ${sessionId} with duration ${duration} seconds`);
       
@@ -415,12 +530,7 @@ const StudyTimer = () => {
       
       if (error) {
         // Remove from saved sessions if there was an error
-        delete savedSessionsRef.current[sessionId];
-        try {
-          localStorage.setItem('savedStudySessions', JSON.stringify(savedSessionsRef.current));
-        } catch (e) {
-          console.error('Error updating localStorage:', e);
-        }
+        removeSessionSaved(sessionId);
         
         toast.error('Error saving study session', { description: error.message });
         throw error;
@@ -478,15 +588,46 @@ const StudyTimer = () => {
     };
   }, [isActive]);
 
-  // Timer logic
+  // Timer logic - replacing the previous timer useEffect
   useEffect(() => {
     let interval: number | undefined;
     
     if (isActive && time > 0) {
+      // Store initial timer values when starting
+      if (timerStartRef.current === null) {
+        timerStartRef.current = Date.now();
+        lastUpdateTimeRef.current = Date.now();
+        initialDurationRef.current = time;
+        
+        // Calculate end time (when timer should reach 0)
+        targetEndTimeRef.current = Date.now() + time * 1000;
+      }
+      
       interval = window.setInterval(() => {
-        setTime((prevTime) => prevTime - 1);
-      }, 1000);
+        const now = Date.now();
+        
+        // First approach: Calculate time based on elapsed time since timer started
+        if (targetEndTimeRef.current !== null) {
+          const remaining = Math.max(0, Math.floor((targetEndTimeRef.current - now) / 1000));
+          setTime(remaining);
+          
+          // Update last check time
+          lastUpdateTimeRef.current = now;
+        }
+        
+        // Handle timer completion
+        if (time <= 0) {
+          clearInterval(interval);
+          // Reset our refs
+          timerStartRef.current = null;
+          targetEndTimeRef.current = null;
+        }
+      }, 500); // Update more frequently for better responsiveness
     } else if (time === 0) {
+      // Timer finished - reset our refs
+      timerStartRef.current = null;
+      targetEndTimeRef.current = null;
+      
       // Timer finished
       setIsActive(false);
       
@@ -504,7 +645,7 @@ const StudyTimer = () => {
         
         // Check if already saved
         const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
-        if (!savedSessionsRef.current[sessionId]) {
+        if (!isSessionSaved(sessionId)) {
           saveSession.mutate(sessionDuration);
         } else {
           console.log(`Session ${sessionId} already saved, skipping save`);
@@ -574,44 +715,91 @@ const StudyTimer = () => {
     };
   }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime, sessionSaved, currentSessionId, user]);
 
+  // Add a new effect to sync timer on visibility changes
+  useEffect(() => {
+    // Function to handle when tab becomes visible again
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isActive) {
+        // Tab is visible again, recalculate the timer
+        if (targetEndTimeRef.current !== null) {
+          const now = Date.now();
+          const remaining = Math.max(0, Math.floor((targetEndTimeRef.current - now) / 1000));
+          
+          // If timer should have completed while away, trigger completion
+          if (remaining <= 0) {
+            setTime(0);
+          } else {
+            setTime(remaining);
+          }
+        }
+      }
+    };
+
+    // Add event listener for visibility change
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [isActive]);
+
   const toggleTimer = () => {
     const newIsActive = !isActive;
     setIsActive(newIsActive);
     
-    // If starting a pomodoro timer, record the start time
-    if (newIsActive && activeTab === "pomodoro" && !sessionStartTime) {
-      const now = Date.now();
-      setSessionStartTime(now);
-      setSessionSaved(false);
+    if (newIsActive) {
+      // Starting the timer
       
-      // Create a new session ID when starting a new timer
-      const newSessionId = `${user?.id || 'anon'}_${now}`;
-      setCurrentSessionId(newSessionId);
+      // If the timer was paused, adjust the target end time
+      if (targetEndTimeRef.current !== null && time > 0) {
+        targetEndTimeRef.current = Date.now() + time * 1000;
+      } 
+      else {
+        // Fresh timer start
+        timerStartRef.current = Date.now();
+        lastUpdateTimeRef.current = Date.now();
+        targetEndTimeRef.current = Date.now() + time * 1000;
+        initialDurationRef.current = time;
+      }
       
-      // Schedule first reminder
-      setNextReminderTime(Date.now() + parseInt(reminderInterval) * 60 * 1000);
-      
-      // Request notification permission if needed
-      if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
-          if (permission === 'granted') {
-            toast.success('Notifications enabled', { 
-              description: 'You will receive notifications when your timer completes'
-            });
-          }
+      // If starting a pomodoro timer, record the start time
+      if (activeTab === "pomodoro" && !sessionStartTime) {
+        const now = Date.now();
+        setSessionStartTime(now);
+        setSessionSaved(false);
+        
+        // Create a new session ID when starting a new timer
+        const newSessionId = `${user?.id || 'anon'}_${now}`;
+        setCurrentSessionId(newSessionId);
+        
+        // Schedule first reminder
+        setNextReminderTime(Date.now() + parseInt(reminderInterval) * 60 * 1000);
+        
+        // Request notification permission if needed
+        if ('Notification' in window && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+          Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+              toast.success('Notifications enabled', { 
+                description: 'You will receive notifications when your timer completes'
+              });
+            }
+          });
+        }
+        
+        // Show notification that timer has started
+        toast.info('Timer started', {
+          description: `Next reminder in ${reminderInterval} minutes`,
+          duration: 3000,
         });
+        
+        // Check if document is hidden when timer starts
+        if (document.hidden) {
+          setShowFloatingTimer(true);
+        }
       }
-      
-      // Show notification that timer has started
-      toast.info('Timer started', {
-        description: `Next reminder in ${reminderInterval} minutes`,
-        duration: 3000,
-      });
-      
-      // Check if document is hidden when timer starts
-      if (document.hidden) {
-        setShowFloatingTimer(true);
-      }
+    } else {
+      // Pausing the timer - we'll keep targetEndTimeRef as is
+      // This will allow us to resume from the correct point
     }
   };
   
@@ -626,7 +814,7 @@ const StudyTimer = () => {
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
         // Check if this session has already been saved
         const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
-        if (!savedSessionsRef.current[sessionId]) {
+        if (!isSessionSaved(sessionId)) {
           setSessionSaved(true);
           saveSession.mutate(sessionDuration);
         } else {
@@ -640,6 +828,10 @@ const StudyTimer = () => {
     setNextReminderTime(null);
     setSessionSaved(false);
     setCurrentSessionId(null); // Reset session ID on timer reset
+    
+    // Reset timer refs
+    timerStartRef.current = null;
+    targetEndTimeRef.current = null;
     
     if (activeTab === "pomodoro") {
       setTime(parseInt(selectedTime) * 60);
@@ -667,7 +859,7 @@ const StudyTimer = () => {
       if (sessionDuration > 10) { // Only save if at least 10 seconds elapsed
         // Check if this session has already been saved
         const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
-        if (!savedSessionsRef.current[sessionId]) {
+        if (!isSessionSaved(sessionId)) {
           setSessionSaved(true);
           saveSession.mutate(sessionDuration);
         } else {

@@ -299,7 +299,7 @@ const Dashboard = () => {
   const completedTasksCount = todayTasks.filter((task: TaskWithSubject) => task.completed).length;
 
   // Check if study time is less than 3 hours
-  const isLowStudyTime = studyHours && parseFloat(studyHours) < 3;
+  const isLowStudyTime = studyHours && parseFloat(studyHours) < 4;
 
   // Generate weekly data for charts - using real data instead of fixed values
   useEffect(() => {
@@ -540,7 +540,7 @@ const Dashboard = () => {
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle className="text-sm font-medium">Low Study Time</AlertTitle>
           <AlertDescription className="text-xs">
-            You've only studied for {studyHours} hours today. Aim for at least 3 hours of daily study for better results.
+            You've only studied for {studyHours} hours today. Aim for at least 4 hours of daily study for better results.
           </AlertDescription>
         </Alert>
       )}

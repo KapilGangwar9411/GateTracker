@@ -19,8 +19,6 @@ const Navbar = () => {
       navigate('/auth');
     } catch (error) {
       console.error('Error signing out:', error);
-      // Navigation still happens even if there's an error with sign out
-      // to ensure users aren't stuck if sign out fails
       navigate('/auth');
     }
   };
@@ -32,7 +30,7 @@ const Navbar = () => {
           <img 
             src="/favicons/android-chrome-192x192.png" 
             alt="GATE Prep Tracker Logo" 
-            className="h-12 w-12"
+            className="h-10 w-10"
           />
         </div>
         

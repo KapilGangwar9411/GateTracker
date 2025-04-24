@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Progress } from '@/components/ui/progress';
-import { Pause, Play, RotateCcw, Bell, Droplets, Coffee, Calendar, BarChart, X, Move } from 'lucide-react';
+import { Pause, Play, RotateCcw, Bell, Droplets, Coffee, Calendar, BarChart, X, Move, Timer as TimerIcon, Clock, LineChart, Flame, Brain, Sparkles, Medal, Lightbulb, Zap, BookOpen } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -169,7 +169,7 @@ const FloatingTimer = ({
   return (
     <div 
       ref={timerRef}
-      className={`fixed z-50 bg-card border rounded-lg shadow-md p-2 w-32 transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed z-50 bg-card border rounded-lg shadow-md p-2 w-32 transition-all duration-300 ${isActive ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}
       style={{ 
         top: `${position.y}px`, 
         left: `${position.x}px`,
@@ -186,7 +186,7 @@ const FloatingTimer = ({
         </div>
         <button 
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="h-3 w-3" />
         </button>
@@ -198,19 +198,19 @@ const FloatingTimer = ({
       
       <div className="flex justify-center space-x-1">
         <Button 
-          variant="outline" 
-          size="icon" 
-          className="h-7 w-7 rounded-full hover:bg-muted transition-colors"
           onClick={onToggleTimer}
+          size="sm"
+          className={`h-7 w-7 rounded-full p-0 ${isActive ? 'bg-red-500 hover:bg-red-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
         >
           {isActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
         </Button>
         
         <Button 
-          variant="outline" 
-          size="icon"
-          className="h-7 w-7 rounded-full hover:bg-muted transition-colors"
           onClick={onResetTimer}
+          size="sm"
+          variant="outline"
+          className="h-7 w-7 rounded-full p-0"
+          disabled={!isActive}
         >
           <RotateCcw className="h-3 w-3" />
         </Button>
@@ -930,132 +930,156 @@ const StudyTimer = () => {
     : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-medium tracking-tight">Study Timer</h2>
-        <div className="flex space-x-2">
+    <div className="space-y-8">
+      {/* Hero header section */}
+      <div className="relative bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-800 rounded-2xl p-6 shadow-lg overflow-hidden">
+        {/* Abstract pattern overlay */}
+        <div className="absolute inset-0 opacity-10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+            <defs>
+              <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="white" strokeWidth="0.5" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#smallGrid)" />
+          </svg>
+        </div>
+        <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+        <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+        
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6 text-white">
+          <div className="space-y-2">
+            <div className="inline-flex items-center space-x-2 mb-1">
+              <TimerIcon className="h-5 w-5" />
+              <h1 className="text-2xl font-bold tracking-tight">Focus Timer</h1>
+            </div>
+            <p className="text-sm text-white/80 max-w-md">
+              Break down your study sessions into focused intervals to improve concentration and reduce mental fatigue.
+            </p>
+            
+            <div className="flex space-x-3 pt-2">
           <Button 
-            onClick={toggleFloatingTimer} 
+                onClick={toggleFloatingTimer} 
             variant="outline" 
             size="sm" 
-            className="text-xs"
+                className="text-xs bg-white/10 border-white/20 hover:bg-white/20 text-white"
           >
-            {showFloatingTimer ? "Hide" : "Show"} Floating Timer
+                {showFloatingTimer ? "Hide" : "Show"} Floating Timer
           </Button>
-          <Dialog>
+              <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="text-xs">
-                <BarChart className="h-3.5 w-3.5 mr-1.5" />
-                Study Stats
+                  <Button variant="outline" size="sm" className="text-xs bg-white/10 border-white/20 hover:bg-white/20 text-white">
+                    <BarChart className="h-3.5 w-3.5 mr-1.5" />
+                    Study Stats
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Study Statistics</DialogTitle>
+                    <DialogTitle>Study Statistics</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-medium">Time Period</h4>
-                    <div className="flex space-x-1">
-                      <Button 
-                        size="sm" 
-                        variant={dateRange === '7' ? "default" : "outline"} 
-                        className="h-7 text-xs px-2"
-                        onClick={() => setDateRange('7')}
-                      >
-                        Week
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant={dateRange === '30' ? "default" : "outline"} 
-                        className="h-7 text-xs px-2"
-                        onClick={() => setDateRange('30')}
-                      >
-                        Month
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant={dateRange === '365' ? "default" : "outline"} 
-                        className="h-7 text-xs px-2"
-                        onClick={() => setDateRange('365')}
-                      >
-                        Year
-                      </Button>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div className="space-y-1">
+                        <h4 className="text-xs font-medium">Time Period</h4>
+                        <div className="flex space-x-1">
+                          <Button 
+                            size="sm" 
+                            variant={dateRange === '7' ? "default" : "outline"} 
+                            className="h-7 text-xs px-2"
+                            onClick={() => setDateRange('7')}
+                          >
+                            Week
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant={dateRange === '30' ? "default" : "outline"} 
+                            className="h-7 text-xs px-2"
+                            onClick={() => setDateRange('30')}
+                          >
+                            Month
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant={dateRange === '365' ? "default" : "outline"} 
+                            className="h-7 text-xs px-2"
+                            onClick={() => setDateRange('365')}
+                          >
+                            Year
+                          </Button>
+                  </div>
+                </div>
+                
+                      {selectedDate && (
+                        <div className="text-xs text-right">
+                          <p className="text-muted-foreground">Selected Date</p>
+                          <p className="font-medium">{format(selectedDate, 'MMMM d, yyyy')}</p>
+                    </div>
+                  )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
+                        <p className="text-muted-foreground mb-1">Total Study Time</p>
+                        <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(totalHistoricalStudyTime)}</p>
+                    </div>
+                      <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
+                        <p className="text-muted-foreground mb-1">Average Per Day</p>
+                        <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
                     </div>
                   </div>
                   
-                  {selectedDate && (
-                    <div className="text-xs text-right">
-                      <p className="text-muted-foreground">Selected Date</p>
-                      <p className="font-medium">{format(selectedDate, 'MMMM d, yyyy')}</p>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
-                    <p className="text-muted-foreground mb-1">Total Study Time</p>
-                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(totalHistoricalStudyTime)}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
-                    <p className="text-muted-foreground mb-1">Average Per Day</p>
-                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
-                  </div>
-                </div>
-                
-                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
-                  <h4 className="text-xs font-medium mb-2 flex items-center justify-between">
-                    <span>Session History</span>
-                    <span className="text-xs text-muted-foreground">Click on a day to view details</span>
-                  </h4>
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
+                      <h4 className="text-xs font-medium mb-2 flex items-center justify-between">
+                        <span>Session History</span>
+                        <span className="text-xs text-muted-foreground">Click on a day to view details</span>
+                      </h4>
                   <div className="h-40 overflow-y-auto space-y-1">
                     {historicalData.length > 0 ? (
                       historicalData.map((day) => (
                         <div 
                           key={day.date} 
-                          className={`flex justify-between items-center text-xs p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors ${selectedDate && format(selectedDate, 'yyyy-MM-dd') === day.date ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
+                              className={`flex justify-between items-center text-xs p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors ${selectedDate && format(selectedDate, 'yyyy-MM-dd') === day.date ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
                           onClick={() => setSelectedDate(new Date(day.date))}
                         >
                           <span className="font-medium">
-                            {format(new Date(day.date), 'EEE, MMM dd')}
+                                {format(new Date(day.date), 'EEE, MMM dd')}
                           </span>
-                          <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                              <span className="font-medium text-indigo-600 dark:text-indigo-400">
                             {formatStudyTimeForDisplay(day.duration)}
                           </span>
                         </div>
                       ))
                     ) : (
-                      <div className="flex items-center justify-center h-full text-muted-foreground">
-                        <p>No study data available for the selected period</p>
-                      </div>
+                          <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <p>No study data available for the selected period</p>
+                          </div>
                     )}
                   </div>
                 </div>
                 
-                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
-                  <h4 className="text-xs font-medium mb-2">Today's Sessions</h4>
+                    <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
+                      <h4 className="text-xs font-medium mb-2">Today's Sessions</h4>
                   {todaySessions && todaySessions.length > 0 ? (
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                        <div className="space-y-1.5 max-h-32 overflow-y-auto">
                       {todaySessions.map((session, index) => (
-                        <div key={session.id} className="flex justify-between items-center text-xs p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
-                          <div className="flex items-center">
-                            <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-[10px] font-medium text-indigo-600 dark:text-indigo-400 mr-2">
-                              {index + 1}
-                            </div>
-                            <span className="text-slate-600 dark:text-slate-300">
-                              {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                            </span>
-                          </div>
-                          <span className="font-medium text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(session.duration)}</span>
+                            <div key={session.id} className="flex justify-between items-center text-xs p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                              <div className="flex items-center">
+                                <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-[10px] font-medium text-indigo-600 dark:text-indigo-400 mr-2">
+                                  {index + 1}
+                                </div>
+                                <span className="text-slate-600 dark:text-slate-300">
+                            {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                          </span>
+                              </div>
+                              <span className="font-medium text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(session.duration)}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <p>No study sessions recorded today</p>
-                      <p className="text-xs mt-1">Start your timer to begin studying</p>
-                    </div>
+                        <div className="text-center py-4 text-muted-foreground">
+                          <p>No study sessions recorded today</p>
+                          <p className="text-xs mt-1">Start your timer to begin studying</p>
+                        </div>
                   )}
                 </div>
               </div>
@@ -1064,191 +1088,262 @@ const StudyTimer = () => {
         </div>
       </div>
       
-      <div className="grid lg:grid-cols-2 gap-8">
-        <div className="flex flex-col justify-center">
-          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/30 shadow-sm relative overflow-hidden">
+          <div className="flex flex-wrap gap-3">
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/5 min-w-[110px]">
+              <p className="text-xs text-indigo-200 mb-1">Today's Study</p>
+              <p className="text-xl font-bold">{formatStudyTimeForDisplay(totalStudyTime)}</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/5 min-w-[110px]">
+              <p className="text-xs text-indigo-200 mb-1">Completed Cycles</p>
+              <p className="text-xl font-bold">{cycles}</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 border border-white/5 min-w-[110px]">
+              <p className="text-xs text-indigo-200 mb-1">Daily Average</p>
+              <p className="text-xl font-bold">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Timer column */}
+        <div className="lg:col-span-2">
+          <div className="bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 rounded-xl p-6 border border-slate-100 dark:border-slate-800 shadow-md relative overflow-hidden">
             {/* Decorative elements */}
-            <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-indigo-100/50 dark:bg-indigo-900/10 blur-xl"></div>
-            <div className="absolute -left-12 -bottom-12 w-40 h-40 rounded-full bg-blue-100/50 dark:bg-blue-900/10 blur-xl"></div>
+            <div className="absolute -right-16 -top-16 w-64 h-64 rounded-full bg-indigo-50/50 dark:bg-indigo-900/10 blur-3xl"></div>
+            <div className="absolute -left-16 -bottom-16 w-64 h-64 rounded-full bg-violet-50/50 dark:bg-violet-900/10 blur-3xl"></div>
             
-            <div className="relative text-center space-y-6">
-              <div>
-                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 mb-4 bg-white/50 dark:bg-slate-800/50">
-                    <TabsTrigger value="pomodoro" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-sm py-1.5">
-                      Study
-                    </TabsTrigger>
-                    <TabsTrigger value="break" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-sm py-1.5">
-                      Break
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="pomodoro" className="space-y-4">
-                    <div className="w-full flex justify-center gap-2">
-                      <Select value={selectedTime} onValueChange={handleTimeChange} disabled={isActive}>
-                        <SelectTrigger className="w-32 bg-white/80 dark:bg-slate-800/80 text-sm border-indigo-100 dark:border-indigo-900/30">
-                          <SelectValue placeholder="Study Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2">2 minutes</SelectItem>
-                          <SelectItem value="25">25 minutes</SelectItem>
-                          <SelectItem value="30">30 minutes</SelectItem>
-                          <SelectItem value="45">45 minutes</SelectItem>
-                          <SelectItem value="60">60 minutes</SelectItem>
-                          <SelectItem value="90">90 minutes</SelectItem>
-                          <SelectItem value="120">120 minutes</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      <Select value={reminderInterval} onValueChange={setReminderInterval} disabled={isActive}>
-                        <SelectTrigger className="w-32 bg-white/80 dark:bg-slate-800/80 text-sm border-indigo-100 dark:border-indigo-900/30">
-                          <SelectValue placeholder="Remind Every" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5 min reminder</SelectItem>
-                          <SelectItem value="10">10 min reminder</SelectItem>
-                          <SelectItem value="15">15 min reminder</SelectItem>
-                          <SelectItem value="20">20 min reminder</SelectItem>
-                          <SelectItem value="30">30 min reminder</SelectItem>
-                        </SelectContent>
-                      </Select>
+            <div className="relative grid md:grid-cols-2 gap-8">
+              {/* Timer circle */}
+              <div className="flex flex-col justify-center items-center space-y-6">
+                <div className="relative w-52 h-52 mx-auto">
+                  <div className="absolute inset-0 rounded-full bg-white dark:bg-slate-800/50 backdrop-blur-sm shadow-inner"></div>
+                  <svg className="w-full h-full" viewBox="0 0 100 100">
+                    <circle
+                      className="text-slate-100 dark:text-slate-700"
+                      strokeWidth="4"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="46"
+                      cx="50"
+                      cy="50"
+                    />
+                    <circle
+                      className={`${activeTab === 'pomodoro' ? 'text-indigo-500' : 'text-blue-500'} transition-all duration-1000 ease-in-out`}
+                      strokeWidth="7"
+                      strokeDasharray={289}
+                      strokeDashoffset={289 - (289 * (1 - time / (parseInt(selectedTime) * 60)))}
+                      strokeLinecap="round"
+                      stroke="currentColor"
+                      fill="transparent"
+                      r="46"
+                      cx="50"
+                      cy="50"
+                    />
+                  </svg>
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                    <div className="text-5xl font-bold text-slate-800 dark:text-slate-100">{formatTime(time)}</div>
+                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                      {activeTab === 'pomodoro' ? 'Focus Time' : 'Break Time'}
                     </div>
-                  </TabsContent>
+                  </div>
+                </div>
+                
+                <div className="flex justify-center space-x-4">
+                  <Button 
+                    variant={isActive ? "outline" : "default"}
+                    size="lg" 
+                    className={`h-14 w-14 rounded-full ${isActive 
+                      ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 dark:border-red-900/30 animate-pulse' 
+                      : 'bg-gradient-to-br from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white shadow-lg shadow-indigo-500/20 border-0'}`}
+                    onClick={toggleTimer}
+                    disabled={saveSession.isPending}
+                  >
+                    {isActive ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+                  </Button>
                   
-                  <TabsContent value="break">
-                    <div className="text-center space-y-4 mb-2">
-                      <p className="text-slate-600 dark:text-slate-300">
-                        Time to recharge your mental energy
-                      </p>
-                      <div className="grid grid-cols-2 gap-3 max-w-[250px] mx-auto">
-                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-blue-100 dark:border-blue-900/30 shadow-sm">
-                          <Droplets className="h-5 w-5 mx-auto mb-1 text-blue-500" />
-                          <p className="text-xs font-medium">Stay hydrated</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-amber-100 dark:border-amber-900/30 shadow-sm">
-                          <Coffee className="h-5 w-5 mx-auto mb-1 text-amber-500" />
-                          <p className="text-xs font-medium">Rest your eyes</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-indigo-100 dark:border-indigo-900/30 shadow-sm">
-                          <Bell className="h-5 w-5 mx-auto mb-1 text-indigo-500" />
-                          <p className="text-xs font-medium">Stretch</p>
-                        </div>
-                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-purple-100 dark:border-purple-900/30 shadow-sm">
-                          <Calendar className="h-5 w-5 mx-auto mb-1 text-purple-500" />
-                          <p className="text-xs font-medium">Plan ahead</p>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
-              
-              <div className="relative w-40 h-40 mx-auto">
-                <div className="absolute inset-0 rounded-full bg-white/60 dark:bg-slate-800/30 backdrop-blur-sm shadow-inner"></div>
-                <svg className="w-full h-full" viewBox="0 0 100 100">
-                  <circle
-                    className="text-slate-200 dark:text-slate-700"
-                    strokeWidth="4"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="46"
-                    cx="50"
-                    cy="50"
-                  />
-                  <circle
-                    className={`${activeTab === 'pomodoro' ? 'text-indigo-500' : 'text-blue-500'}`}
-                    strokeWidth="6"
-                    strokeDasharray={289}
-                    strokeDashoffset={289 - (289 * (1 - time / (parseInt(selectedTime) * 60)))}
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="46"
-                    cx="50"
-                    cy="50"
-                  />
-                </svg>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                  <div className="text-4xl font-bold text-slate-800 dark:text-slate-100">{formatTime(time)}</div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{activeTab === 'pomodoro' ? 'Focus Time' : 'Break Time'}</div>
+                  <Button 
+                    variant="outline" 
+                    size="lg" 
+                    className="h-14 w-14 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 shadow-sm"
+                    onClick={resetTimer}
+                    disabled={saveSession.isPending || !isActive}
+                  >
+                    <RotateCcw className="h-6 w-6" />
+                  </Button>
                 </div>
               </div>
               
-              <div className="flex justify-center space-x-4">
-                <Button 
-                  variant={isActive ? "outline" : "default"}
-                  size="lg" 
-                  className={`h-12 w-12 rounded-full ${isActive ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 dark:border-red-900/30' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
-                  onClick={toggleTimer}
-                  disabled={saveSession.isPending}
-                >
-                  {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                </Button>
-                
-                <Button 
-                  variant="outline" 
-                  size="lg" 
-                  className="h-12 w-12 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800"
-                  onClick={resetTimer}
-                  disabled={saveSession.isPending || !isActive}
-                >
-                  <RotateCcw className="h-5 w-5" />
-                </Button>
+              {/* Settings panel */}
+              <div>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-6 bg-slate-100/50 dark:bg-slate-800/50">
+                    <TabsTrigger value="pomodoro" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-indigo-500 data-[state=active]:to-violet-500 data-[state=active]:text-white text-sm py-2">
+                      <Clock className="h-4 w-4 mr-2" />
+                      Study Session
+              </TabsTrigger>
+                    <TabsTrigger value="break" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white text-sm py-2">
+                      <Coffee className="h-4 w-4 mr-2" />
+                      Break Time
+              </TabsTrigger>
+            </TabsList>
+            
+                  <TabsContent value="pomodoro" className="space-y-6">
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Study Duration</label>
+                <Select value={selectedTime} onValueChange={handleTimeChange} disabled={isActive}>
+                          <SelectTrigger className="w-full bg-white dark:bg-slate-800 text-sm border-slate-200 dark:border-slate-700">
+                    <SelectValue placeholder="Study Time" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2 minutes</SelectItem>
+                    <SelectItem value="25">25 minutes</SelectItem>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="45">45 minutes</SelectItem>
+                    <SelectItem value="60">60 minutes</SelectItem>
+                    <SelectItem value="90">90 minutes</SelectItem>
+                    <SelectItem value="120">120 minutes</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               
-              <div className="text-center space-y-2">
-                {cycles > 0 && (
-                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
-                    <span>Completed cycles: {cycles}</span>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Reminder Interval</label>
+                <Select value={reminderInterval} onValueChange={setReminderInterval} disabled={isActive}>
+                          <SelectTrigger className="w-full bg-white dark:bg-slate-800 text-sm border-slate-200 dark:border-slate-700">
+                            <SelectValue placeholder="Remind Every" />
+                  </SelectTrigger>
+                  <SelectContent>
+                            <SelectItem value="5">5 min reminder</SelectItem>
+                            <SelectItem value="10">10 min reminder</SelectItem>
+                            <SelectItem value="15">15 min reminder</SelectItem>
+                            <SelectItem value="20">20 min reminder</SelectItem>
+                            <SelectItem value="30">30 min reminder</SelectItem>
+                  </SelectContent>
+                </Select>
+                      </div>
+                      
+                      <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border border-indigo-100 dark:border-indigo-800/30">
+                        <div className="flex items-center space-x-3">
+                          <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-800/30 flex items-center justify-center">
+                            <Zap className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-sm">Focus Tips</h4>
+                            <p className="text-xs text-slate-600 dark:text-slate-400">Eliminate distractions and set clear goals for each session</p>
+                          </div>
+                        </div>
+                      </div>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="break">
+                    <div className="text-center space-y-5">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-100 dark:border-blue-800/30">
+                        <h4 className="font-medium mb-2 text-blue-700 dark:text-blue-400">Recharge your mental energy</h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-400">Use these short breaks to rest and prepare for your next focused session</p>
                   </div>
-                )}
-                
-                {totalStudyTime > 0 && (
-                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                    Today's study time: <span className="text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(totalStudyTime)}</span>
+                      
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                          <Droplets className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+                          <p className="text-sm font-medium">Stay hydrated</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Drink water regularly</p>
                   </div>
-                )}
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                          <Coffee className="h-6 w-6 mx-auto mb-2 text-amber-500" />
+                          <p className="text-sm font-medium">Rest your eyes</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Look away from screen</p>
+                  </div>
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                          <Bell className="h-6 w-6 mx-auto mb-2 text-violet-500" />
+                          <p className="text-sm font-medium">Stretch</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Move your body</p>
+                        </div>
+                        <div className="p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow">
+                          <Calendar className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+                          <p className="text-sm font-medium">Plan ahead</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Review your goals</p>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+                </Tabs>
               </div>
             </div>
           </div>
         </div>
         
-        <div className="flex flex-col justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-6">
-          <h3 className="text-lg font-medium mb-4">Study Session Tips</h3>
-          
-          <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">The Pomodoro Technique</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Break your study sessions into focused intervals (traditionally 25 minutes) with short breaks in between. This improves concentration and reduces mental fatigue.</p>
-            </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">Stay Hydrated</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Drinking water regularly helps maintain cognitive function. Use break times to rehydrate for optimal brain performance.</p>
-            </div>
-            
-            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
-              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">Reduce Eye Strain</h4>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Apply the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds to reduce digital eye strain.</p>
-            </div>
-            
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <div className="text-slate-500 dark:text-slate-400">
-                <p>Set your timer, maintain focus, and build consistent study habits.</p>
+        {/* Study tips column */}
+        <div>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-100 dark:border-slate-800 overflow-hidden">
+            <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-4 text-white">
+              <div className="flex items-center space-x-2">
+                <Lightbulb className="h-5 w-5" />
+                <h3 className="font-medium">Effective Study Strategies</h3>
+                </div>
               </div>
               
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="text-xs"
-                onClick={toggleFloatingTimer}
-              >
-                {showFloatingTimer ? "Hide" : "Show"} Mini Timer
-              </Button>
+            <div className="p-4 space-y-4">
+              <div className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 p-3 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Flame className="h-4 w-4 text-red-500" />
+                  </div>
+                  <h4 className="font-medium text-sm">The Pomodoro Technique</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Break your study sessions into focused intervals (25 minutes) with short breaks to improve concentration.</p>
+              </div>
+              
+              <div className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 p-3 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Droplets className="h-4 w-4 text-blue-500" />
+                  </div>
+                  <h4 className="font-medium text-sm">Stay Hydrated</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Drinking water regularly helps maintain cognitive function and improves brain performance.</p>
+              </div>
+              
+              <div className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 p-3 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Coffee className="h-4 w-4 text-amber-500" />
+                  </div>
+                  <h4 className="font-medium text-sm">Reduce Eye Strain</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Apply the 20-20-20 rule: every 20 minutes, look 20 feet away for 20 seconds.</p>
+              </div>
+              
+              <div className="group hover:bg-slate-50 dark:hover:bg-slate-800/50 p-3 rounded-lg transition-colors">
+                <div className="flex items-center space-x-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Brain className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <h4 className="font-medium text-sm">Active Recall</h4>
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Test yourself regularly instead of passively reviewing to strengthen memory retention.</p>
+              </div>
+              
+              <div className="mt-4 flex justify-between items-center">
+                <div className="flex items-center space-x-2 text-indigo-600 dark:text-indigo-400">
+                  <Medal className="h-4 w-4" />
+                  <p className="text-xs font-medium">Consistency builds results</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-xs h-7"
+                  onClick={toggleFloatingTimer}
+                >
+                  {showFloatingTimer ? "Hide" : "Show"} Mini Timer
+                </Button>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
+              </div>
+                </div>
+            </div>
       
       {/* Floating Timer */}
       <FloatingTimer 
@@ -1262,11 +1357,11 @@ const StudyTimer = () => {
       
       {/* Reminder Dialog */}
       <AlertDialog open={showReminder} onOpenChange={setShowReminder}>
-        <AlertDialogContent className="sm:max-w-xs bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-800/50">
+        <AlertDialogContent className="sm:max-w-xs bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-800/50 shadow-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center text-lg">
-              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mr-2">
-                {reminderMessage.icon}
+              <div className="w-9 h-9 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mr-2">
+              {reminderMessage.icon}
               </div>
               <span>Study Reminder</span>
             </AlertDialogTitle>
@@ -1275,7 +1370,7 @@ const StudyTimer = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction className="bg-indigo-600 hover:bg-indigo-700 text-sm">
+            <AlertDialogAction className="bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 text-white text-sm shadow-md shadow-indigo-500/20">
               Continue Studying
             </AlertDialogAction>
           </AlertDialogFooter>

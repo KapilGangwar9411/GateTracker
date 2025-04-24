@@ -8,6 +8,8 @@ import { useQuery } from '@tanstack/react-query';
 import { format, subDays, startOfWeek, addDays, differenceInDays } from 'date-fns';
 import { Subject, Task, StudySession } from '@/types/database.types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 // Import Recharts components
 import { 
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
@@ -57,6 +59,7 @@ const GATE_SUBJECTS = [
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
   const [subjectStats, setSubjectStats] = useState<Record<string, {total: number, completed: number}>>({});
   const [overallProgress, setOverallProgress] = useState({ total: 0, completed: 0 });
@@ -298,9 +301,6 @@ const Dashboard = () => {
   // Count completed tasks
   const completedTasksCount = todayTasks.filter((task: TaskWithSubject) => task.completed).length;
 
-  // Check if study time is less than 3 hours
-  const isLowStudyTime = studyHours && parseFloat(studyHours) < 4;
-
   // Generate weekly data for charts - using real data instead of fixed values
   useEffect(() => {
     // Generate data based on actual metrics but maintain stability
@@ -410,6 +410,12 @@ const Dashboard = () => {
     generateSubjectData();
   }, [studyHours, subjectStats, calculateProgress, completedTasksCount, overallProgress.completed]);
 
+  // Handler for switching to the timer tab
+  const handleStartStudySession = () => {
+    // Navigate to the same page but with a query param to indicate which tab to open
+    navigate('/?tab=timer');
+  };
+
   return (
     <div className="space-y-8 pb-8">
       <div className="flex items-center justify-between">
@@ -419,7 +425,7 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Exam Countdown Section - Completely Redesigned */}
+      {/* Exam Countdown Section with Integrated Low Study Alert */}
       <div className="relative overflow-hidden">
         <div className="bg-gradient-to-br from-blue-800 to-indigo-900 rounded-xl text-white overflow-hidden shadow-xl">
           {/* Background Design Elements */}
@@ -531,19 +537,54 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Low Study Time Alert - Integrated with countdown */}
+            {parseFloat(studyHours as string || '0') < 4 && (
+              <div className="mt-6 border border-orange-400/30 rounded-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 backdrop-blur-sm p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2.5 rounded-full bg-orange-500/30 flex items-center justify-center">
+                      <AlertTriangle className="h-5 w-5 text-orange-100" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-base font-semibold text-white mb-1">Study Time Alert</h3>
+                      <div className="text-blue-100 text-sm mb-3">
+                        <p>You've studied <span className="font-semibold text-white">{studyHours} hours</span> today. For GATE success, aim for <span className="font-semibold text-white">4+ hours</span> daily.</p>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs text-blue-100">
+                          <span>Daily goal progress</span>
+                          <span className="font-medium">{parseFloat(studyHours as string || '0') < 1 ? 
+                            `${Math.round(parseFloat(studyHours as string || '0') * 60)} min` : 
+                            `${parseFloat(studyHours as string || '0').toFixed(1)} hrs`} / 4 hrs</span>
+                        </div>
+                        
+                        <div className="w-full bg-white/10 rounded-full h-2">
+                          <div 
+                            className="bg-gradient-to-r from-amber-400 to-orange-300 h-2 rounded-full transition-all duration-500 ease-in-out" 
+                            style={{ width: `${Math.min((parseFloat(studyHours as string || '0') / 4) * 100, 100)}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3">
+                        <button 
+                          onClick={handleStartStudySession}
+                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors inline-flex items-center gap-1.5"
+                        >
+                          <Clock className="h-3.5 w-3.5" />
+                          Start Study Session
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
-      
-      {isLowStudyTime && (
-        <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 border shadow-sm">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle className="text-sm font-medium">Low Study Time</AlertTitle>
-          <AlertDescription className="text-xs">
-            You've only studied for {studyHours} hours today. Aim for at least 4 hours of daily study for better results.
-          </AlertDescription>
-        </Alert>
-      )}
       
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">

@@ -800,6 +800,25 @@ const StudyTimer = () => {
     } else {
       // Pausing the timer - we'll keep targetEndTimeRef as is
       // This will allow us to resume from the correct point
+      
+      // Save partial study time when pausing
+      if (activeTab === "pomodoro" && 
+          sessionStartTime !== null && 
+          !sessionSaved &&
+          time < parseInt(selectedTime) * 60 - 10) {  // Only save if at least 10 seconds elapsed
+        
+        const sessionDuration = parseInt(selectedTime) * 60 - time;
+        if (sessionDuration > 10) {
+          // Check if this session has already been saved
+          const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
+          if (!isSessionSaved(sessionId)) {
+            setSessionSaved(true);
+            saveSession.mutate(sessionDuration);
+          } else {
+            console.log(`Session ${sessionId} already saved during pause, skipping save`);
+          }
+        }
+      }
     }
   };
   
@@ -911,147 +930,132 @@ const StudyTimer = () => {
     : 0;
 
   return (
-    <div className="space-y-2 max-w-sm mx-auto">
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-          Study Timer
-        </h2>
-        <div className="flex gap-1">
+        <h2 className="text-2xl font-medium tracking-tight">Study Timer</h2>
+        <div className="flex space-x-2">
           <Button 
+            onClick={toggleFloatingTimer} 
             variant="outline" 
             size="sm" 
-            className="h-8 px-2 hover:bg-muted transition-colors"
-            onClick={toggleFloatingTimer}
-            disabled={!isActive}
+            className="text-xs"
           >
-            <Move className="h-3 w-3 mr-1" />
-            <span className="text-xs">Float</span>
+            {showFloatingTimer ? "Hide" : "Show"} Floating Timer
           </Button>
-          <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+          <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 px-2 hover:bg-muted transition-colors">
-                <BarChart className="h-3 w-3 mr-1" />
-                <span className="text-xs">Stats</span>
+              <Button variant="outline" size="sm" className="text-xs">
+                <BarChart className="h-3.5 w-3.5 mr-1.5" />
+                Study Stats
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle className="text-lg">Study Statistics</DialogTitle>
+                <DialogTitle>Study Statistics</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="grid grid-cols-3 gap-1">
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Today's Study</p>
-                    <p className="text-sm font-semibold">{formatStudyTimeForDisplay(totalStudyTime)}</p>
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-medium">Time Period</h4>
+                    <div className="flex space-x-1">
+                      <Button 
+                        size="sm" 
+                        variant={dateRange === '7' ? "default" : "outline"} 
+                        className="h-7 text-xs px-2"
+                        onClick={() => setDateRange('7')}
+                      >
+                        Week
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={dateRange === '30' ? "default" : "outline"} 
+                        className="h-7 text-xs px-2"
+                        onClick={() => setDateRange('30')}
+                      >
+                        Month
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant={dateRange === '365' ? "default" : "outline"} 
+                        className="h-7 text-xs px-2"
+                        onClick={() => setDateRange('365')}
+                      >
+                        Year
+                      </Button>
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Sessions</p>
-                    <p className="text-sm font-semibold">{todaySessions?.length || 0}</p>
+                  
+                  {selectedDate && (
+                    <div className="text-xs text-right">
+                      <p className="text-muted-foreground">Selected Date</p>
+                      <p className="font-medium">{format(selectedDate, 'MMMM d, yyyy')}</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
+                    <p className="text-muted-foreground mb-1">Total Study Time</p>
+                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(totalHistoricalStudyTime)}</p>
                   </div>
-                  <div className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground">Cycles</p>
-                    <p className="text-sm font-semibold">{cycles}</p>
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 shadow-sm">
+                    <p className="text-muted-foreground mb-1">Average Per Day</p>
+                    <p className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <h4 className="text-xs font-medium">Historical Study Time</h4>
-                    <Select value={dateRange} onValueChange={setDateRange}>
-                      <SelectTrigger className="w-32 h-7 text-xs">
-                        <SelectValue placeholder="Select range" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">Last 7 days</SelectItem>
-                        <SelectItem value="30">Last 30 days</SelectItem>
-                        <SelectItem value="90">Last 90 days</SelectItem>
-                        <SelectItem value="180">Last 180 days</SelectItem>
-                        <SelectItem value="365">Last year</SelectItem>
-                        <SelectItem value="custom">Custom range</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  {dateRange === "custom" && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <div className="flex-1">
-                        <label className="block text-muted-foreground mb-1">Start Date</label>
-                        <Input 
-                          type="date" 
-                          className="h-7 text-xs"
-                          value={customDateRange.start ? format(customDateRange.start, 'yyyy-MM-dd') : ''}
-                          onChange={(e) => {
-                            const date = e.target.value ? new Date(e.target.value) : null;
-                            setCustomDateRange(prev => ({ ...prev, start: date }));
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <label className="block text-muted-foreground mb-1">End Date</label>
-                        <Input 
-                          type="date" 
-                          className="h-7 text-xs"
-                          value={customDateRange.end ? format(customDateRange.end, 'yyyy-MM-dd') : ''}
-                          onChange={(e) => {
-                            const date = e.target.value ? new Date(e.target.value) : null;
-                            setCustomDateRange(prev => ({ ...prev, end: date }));
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="p-2 rounded-lg bg-muted/30">
-                      <p className="text-muted-foreground">Total Study Time</p>
-                      <p className="font-medium">{formatStudyTimeForDisplay(totalHistoricalStudyTime)}</p>
-                    </div>
-                    <div className="p-2 rounded-lg bg-muted/30">
-                      <p className="text-muted-foreground">Average Per Day</p>
-                      <p className="font-medium">{formatStudyTimeForDisplay(averageStudyTimePerDay)}</p>
-                    </div>
-                  </div>
-                  
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
+                  <h4 className="text-xs font-medium mb-2 flex items-center justify-between">
+                    <span>Session History</span>
+                    <span className="text-xs text-muted-foreground">Click on a day to view details</span>
+                  </h4>
                   <div className="h-40 overflow-y-auto space-y-1">
                     {historicalData.length > 0 ? (
                       historicalData.map((day) => (
                         <div 
                           key={day.date} 
-                          className="flex justify-between items-center text-xs p-1.5 rounded-lg hover:bg-muted cursor-pointer"
+                          className={`flex justify-between items-center text-xs p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors ${selectedDate && format(selectedDate, 'yyyy-MM-dd') === day.date ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''}`}
                           onClick={() => setSelectedDate(new Date(day.date))}
                         >
                           <span className="font-medium">
-                            {format(new Date(day.date), 'MMM dd, yyyy')}
+                            {format(new Date(day.date), 'EEE, MMM dd')}
                           </span>
-                          <span className="text-primary font-medium">
+                          <span className="font-medium text-indigo-600 dark:text-indigo-400">
                             {formatStudyTimeForDisplay(day.duration)}
                           </span>
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-muted-foreground text-center py-2">
-                        No study data available for the selected period
-                      </p>
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
+                        <p>No study data available for the selected period</p>
+                      </div>
                     )}
                   </div>
                 </div>
                 
-                <div className="space-y-1">
-                  <h4 className="text-xs font-medium">Today's Sessions</h4>
+                <div className="bg-slate-50 dark:bg-slate-900 rounded-lg shadow-sm p-3">
+                  <h4 className="text-xs font-medium mb-2">Today's Sessions</h4>
                   {todaySessions && todaySessions.length > 0 ? (
-                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
                       {todaySessions.map((session, index) => (
-                        <div key={session.id} className="flex justify-between items-center text-xs p-1 rounded-lg hover:bg-muted">
-                          <span className="font-medium">Session {index + 1}</span>
-                          <span className="text-primary">{formatStudyTimeForDisplay(session.duration)}</span>
-                          <span className="text-muted-foreground">
-                            {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                          </span>
+                        <div key={session.id} className="flex justify-between items-center text-xs p-1.5 rounded-lg bg-white dark:bg-slate-800 shadow-sm">
+                          <div className="flex items-center">
+                            <div className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-[10px] font-medium text-indigo-600 dark:text-indigo-400 mr-2">
+                              {index + 1}
+                            </div>
+                            <span className="text-slate-600 dark:text-slate-300">
+                              {new Date(session.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                          </div>
+                          <span className="font-medium text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(session.duration)}</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground">No study sessions recorded today</p>
+                    <div className="text-center py-4 text-muted-foreground">
+                      <p>No study sessions recorded today</p>
+                      <p className="text-xs mt-1">Start your timer to begin studying</p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -1060,154 +1064,191 @@ const StudyTimer = () => {
         </div>
       </div>
       
-      <Card className="border shadow-sm bg-card">
-        <CardHeader className="pb-0 pt-3 px-3">
-          <CardTitle className="text-base text-center">Pomodoro Timer</CardTitle>
-          <CardDescription className="text-center text-xs">Focus with timed study sessions</CardDescription>
-        </CardHeader>
-        <CardContent className="p-2">
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-2">
-              <TabsTrigger value="pomodoro" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground text-xs py-1">
-                Study
-              </TabsTrigger>
-              <TabsTrigger value="break" className="data-[state=active]:bg-primary/80 data-[state=active]:text-primary-foreground text-xs py-1">
-                Break
-              </TabsTrigger>
-            </TabsList>
+      <div className="grid lg:grid-cols-2 gap-8">
+        <div className="flex flex-col justify-center">
+          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-950/20 dark:to-blue-950/20 rounded-xl p-6 border border-indigo-100 dark:border-indigo-900/30 shadow-sm relative overflow-hidden">
+            {/* Decorative elements */}
+            <div className="absolute -right-12 -top-12 w-40 h-40 rounded-full bg-indigo-100/50 dark:bg-indigo-900/10 blur-xl"></div>
+            <div className="absolute -left-12 -bottom-12 w-40 h-40 rounded-full bg-blue-100/50 dark:bg-blue-900/10 blur-xl"></div>
             
-            <TabsContent value="pomodoro" className="space-y-2">
-              <div className="w-full flex justify-center gap-1">
-                <Select value={selectedTime} onValueChange={handleTimeChange} disabled={isActive}>
-                  <SelectTrigger className="w-28 bg-background text-xs h-8">
-                    <SelectValue placeholder="Study Time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 minutes</SelectItem>
-                    <SelectItem value="25">25 minutes</SelectItem>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                    <SelectItem value="45">45 minutes</SelectItem>
-                    <SelectItem value="60">60 minutes</SelectItem>
-                    <SelectItem value="90">90 minutes</SelectItem>
-                    <SelectItem value="120">120 minutes</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="relative text-center space-y-6">
+              <div>
+                <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4 bg-white/50 dark:bg-slate-800/50">
+                    <TabsTrigger value="pomodoro" className="data-[state=active]:bg-indigo-600 data-[state=active]:text-white text-sm py-1.5">
+                      Study
+                    </TabsTrigger>
+                    <TabsTrigger value="break" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-sm py-1.5">
+                      Break
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="pomodoro" className="space-y-4">
+                    <div className="w-full flex justify-center gap-2">
+                      <Select value={selectedTime} onValueChange={handleTimeChange} disabled={isActive}>
+                        <SelectTrigger className="w-32 bg-white/80 dark:bg-slate-800/80 text-sm border-indigo-100 dark:border-indigo-900/30">
+                          <SelectValue placeholder="Study Time" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="2">2 minutes</SelectItem>
+                          <SelectItem value="25">25 minutes</SelectItem>
+                          <SelectItem value="30">30 minutes</SelectItem>
+                          <SelectItem value="45">45 minutes</SelectItem>
+                          <SelectItem value="60">60 minutes</SelectItem>
+                          <SelectItem value="90">90 minutes</SelectItem>
+                          <SelectItem value="120">120 minutes</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <Select value={reminderInterval} onValueChange={setReminderInterval} disabled={isActive}>
+                        <SelectTrigger className="w-32 bg-white/80 dark:bg-slate-800/80 text-sm border-indigo-100 dark:border-indigo-900/30">
+                          <SelectValue placeholder="Remind Every" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5">5 min reminder</SelectItem>
+                          <SelectItem value="10">10 min reminder</SelectItem>
+                          <SelectItem value="15">15 min reminder</SelectItem>
+                          <SelectItem value="20">20 min reminder</SelectItem>
+                          <SelectItem value="30">30 min reminder</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="break">
+                    <div className="text-center space-y-4 mb-2">
+                      <p className="text-slate-600 dark:text-slate-300">
+                        Time to recharge your mental energy
+                      </p>
+                      <div className="grid grid-cols-2 gap-3 max-w-[250px] mx-auto">
+                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-blue-100 dark:border-blue-900/30 shadow-sm">
+                          <Droplets className="h-5 w-5 mx-auto mb-1 text-blue-500" />
+                          <p className="text-xs font-medium">Stay hydrated</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-amber-100 dark:border-amber-900/30 shadow-sm">
+                          <Coffee className="h-5 w-5 mx-auto mb-1 text-amber-500" />
+                          <p className="text-xs font-medium">Rest your eyes</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-indigo-100 dark:border-indigo-900/30 shadow-sm">
+                          <Bell className="h-5 w-5 mx-auto mb-1 text-indigo-500" />
+                          <p className="text-xs font-medium">Stretch</p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-800/60 border border-purple-100 dark:border-purple-900/30 shadow-sm">
+                          <Calendar className="h-5 w-5 mx-auto mb-1 text-purple-500" />
+                          <p className="text-xs font-medium">Plan ahead</p>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
               
-              <div className="flex items-center gap-1 justify-center">
-                <span className="text-xs text-muted-foreground">Reminder:</span>
-                <Select value={reminderInterval} onValueChange={setReminderInterval} disabled={isActive}>
-                  <SelectTrigger className="w-20 bg-background text-xs h-8">
-                    <SelectValue placeholder="Interval" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 minutes</SelectItem>
-                    <SelectItem value="10">10 minutes</SelectItem>
-                    <SelectItem value="15">15 minutes</SelectItem>
-                    <SelectItem value="20">20 minutes</SelectItem>
-                    <SelectItem value="30">30 minutes</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="break">
-              <div className="text-center space-y-2">
-                <p className="text-muted-foreground text-xs">
-                Take a short break to recharge!
-              </p>
-                <div className="grid grid-cols-2 gap-1 max-w-[200px] mx-auto">
-                  <div className="p-1 rounded-lg bg-card shadow-sm">
-                    <Droplets className="h-4 w-4 mx-auto mb-0.5 text-primary" />
-                    <p className="text-[10px]">Stay hydrated</p>
-                  </div>
-                  <div className="p-1 rounded-lg bg-card shadow-sm">
-                    <Coffee className="h-4 w-4 mx-auto mb-0.5 text-amber-500" />
-                    <p className="text-[10px]">Rest your eyes</p>
-                  </div>
-                  <div className="p-1 rounded-lg bg-card shadow-sm">
-                    <Bell className="h-4 w-4 mx-auto mb-0.5 text-primary/80" />
-                    <p className="text-[10px]">Stretch</p>
-                  </div>
-                  <div className="p-1 rounded-lg bg-card shadow-sm">
-                    <Calendar className="h-4 w-4 mx-auto mb-0.5 text-primary/60" />
-                    <p className="text-[10px]">Plan ahead</p>
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <div className="text-center my-2">
-              <div className="relative w-28 h-28 mx-auto mb-2">
+              <div className="relative w-40 h-40 mx-auto">
+                <div className="absolute inset-0 rounded-full bg-white/60 dark:bg-slate-800/30 backdrop-blur-sm shadow-inner"></div>
                 <svg className="w-full h-full" viewBox="0 0 100 100">
                   <circle
-                    className="text-muted"
-                    strokeWidth="8"
+                    className="text-slate-200 dark:text-slate-700"
+                    strokeWidth="4"
                     stroke="currentColor"
                     fill="transparent"
-                    r="42"
+                    r="46"
                     cx="50"
                     cy="50"
                   />
                   <circle
-                    className="text-primary"
-                    strokeWidth="8"
-                    strokeDasharray={264}
-                    strokeDashoffset={264 - (264 * (1 - time / (parseInt(selectedTime) * 60)))}
+                    className={`${activeTab === 'pomodoro' ? 'text-indigo-500' : 'text-blue-500'}`}
+                    strokeWidth="6"
+                    strokeDasharray={289}
+                    strokeDashoffset={289 - (289 * (1 - time / (parseInt(selectedTime) * 60)))}
                     strokeLinecap="round"
                     stroke="currentColor"
                     fill="transparent"
-                    r="42"
+                    r="46"
                     cx="50"
                     cy="50"
                   />
                 </svg>
-                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                  <div className="text-2xl font-bold">{formatTime(time)}</div>
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                  <div className="text-4xl font-bold text-slate-800 dark:text-slate-100">{formatTime(time)}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{activeTab === 'pomodoro' ? 'Focus Time' : 'Break Time'}</div>
                 </div>
               </div>
               
-              <div className="flex justify-center space-x-2">
+              <div className="flex justify-center space-x-4">
                 <Button 
-                  variant="outline" 
-                  size="icon" 
-                  className="h-10 w-10 rounded-full hover:bg-muted transition-colors"
+                  variant={isActive ? "outline" : "default"}
+                  size="lg" 
+                  className={`h-12 w-12 rounded-full ${isActive ? 'bg-red-50 hover:bg-red-100 text-red-600 border-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30 dark:text-red-400 dark:border-red-900/30' : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
                   onClick={toggleTimer}
                   disabled={saveSession.isPending}
                 >
-                  {isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                  {isActive ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                 </Button>
                 
                 <Button 
                   variant="outline" 
-                  size="icon" 
-                  className="h-10 w-10 rounded-full hover:bg-muted transition-colors"
+                  size="lg" 
+                  className="h-12 w-12 rounded-full bg-slate-50 hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800"
                   onClick={resetTimer}
-                  disabled={saveSession.isPending}
+                  disabled={saveSession.isPending || !isActive}
                 >
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-5 w-5" />
                 </Button>
               </div>
+              
+              <div className="text-center space-y-2">
+                {cycles > 0 && (
+                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium">
+                    <span>Completed cycles: {cycles}</span>
+                  </div>
+                )}
+                
+                {totalStudyTime > 0 && (
+                  <div className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Today's study time: <span className="text-indigo-600 dark:text-indigo-400">{formatStudyTimeForDisplay(totalStudyTime)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex flex-col justify-center bg-slate-50 dark:bg-slate-900/50 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800 p-6">
+          <h3 className="text-lg font-medium mb-4">Study Session Tips</h3>
+          
+          <div className="space-y-4">
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">The Pomodoro Technique</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Break your study sessions into focused intervals (traditionally 25 minutes) with short breaks in between. This improves concentration and reduces mental fatigue.</p>
             </div>
             
-            <div className="text-center space-y-0.5">
-              <div className="text-xs text-muted-foreground">
-              Completed cycles: {cycles}
-              </div>
-              {totalStudyTime > 0 && (
-                <div className="text-xs font-medium text-primary">
-                  Today's study time: {formatStudyTimeForDisplay(totalStudyTime)}
-                </div>
-              )}
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">Stay Hydrated</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Drinking water regularly helps maintain cognitive function. Use break times to rehydrate for optimal brain performance.</p>
             </div>
-          </Tabs>
-        </CardContent>
-        <CardFooter className="flex justify-center border-t bg-muted/30 py-1">
-          <div className="text-[10px] text-center text-muted-foreground max-w-xs">
-            Set a timer, stay focused, and take regular breaks.
+            
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm">
+              <h4 className="font-medium text-sm text-indigo-600 dark:text-indigo-400 mb-1">Reduce Eye Strain</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Apply the 20-20-20 rule: every 20 minutes, look at something 20 feet away for 20 seconds to reduce digital eye strain.</p>
+            </div>
+            
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <div className="text-slate-500 dark:text-slate-400">
+                <p>Set your timer, maintain focus, and build consistent study habits.</p>
+              </div>
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="text-xs"
+                onClick={toggleFloatingTimer}
+              >
+                {showFloatingTimer ? "Hide" : "Show"} Mini Timer
+              </Button>
+            </div>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
       
       {/* Floating Timer */}
       <FloatingTimer 
@@ -1221,18 +1262,20 @@ const StudyTimer = () => {
       
       {/* Reminder Dialog */}
       <AlertDialog open={showReminder} onOpenChange={setShowReminder}>
-        <AlertDialogContent className="sm:max-w-xs">
+        <AlertDialogContent className="sm:max-w-xs bg-white dark:bg-slate-900 border border-indigo-100 dark:border-indigo-800/50">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center text-base">
-              {reminderMessage.icon}
-              Study Reminder
+            <AlertDialogTitle className="flex items-center text-lg">
+              <div className="w-8 h-8 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mr-2">
+                {reminderMessage.icon}
+              </div>
+              <span>Study Reminder</span>
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-sm">
+            <AlertDialogDescription className="text-base font-medium text-slate-700 dark:text-slate-300 mt-2">
               {reminderMessage.message}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogAction className="bg-primary hover:bg-primary/90 text-xs py-1">
+            <AlertDialogAction className="bg-indigo-600 hover:bg-indigo-700 text-sm">
               Continue Studying
             </AlertDialogAction>
           </AlertDialogFooter>

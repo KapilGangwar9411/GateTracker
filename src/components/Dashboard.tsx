@@ -425,163 +425,103 @@ const Dashboard = () => {
         </div>
       </div>
       
-      {/* Exam Countdown Section with Integrated Low Study Alert */}
-      <div className="relative overflow-hidden">
-        <div className="bg-gradient-to-br from-blue-800 to-indigo-900 rounded-xl text-white overflow-hidden shadow-xl">
-          {/* Background Design Elements */}
-          <div className="absolute inset-0 overflow-hidden opacity-10">
-            <div className="absolute -right-10 -top-10 w-72 h-72 bg-white/10 rounded-full blur-2xl"></div>
-            <div className="absolute -left-10 -bottom-10 w-72 h-72 bg-white/10 rounded-full blur-2xl"></div>
-          </div>
-          
-          <div className="relative p-8">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              {/* Countdown Header */}
-              <div className="lg:col-span-4">
-                <div className="space-y-4">
-                  <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-indigo-500/20 text-indigo-100 text-xs font-medium">
-                    <CalendarClock className="w-3.5 h-3.5 mr-1.5" />
-                    GATE CSE Examination 2026
+      {/* Exam Countdown Section - Professional Minimal Design */}
+      <div className="relative">
+        <div className="bg-gradient-to-br from-slate-50 to-white dark:from-zinc-900 dark:to-zinc-800 rounded-xl overflow-hidden shadow-sm border border-slate-100 dark:border-zinc-800">
+          <div className="p-6 md:p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+              {/* Left side - Countdown information */}
+              <div className="space-y-6">
+                <div>
+                  <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium mb-4">
+                    <CalendarClock className="w-3 h-3 mr-1.5" />
+                    GATE CSE 2026
                   </div>
                   
-                  <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
-                    The Countdown Is On
+                  <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
+                    Your GATE Exam Countdown
                   </h2>
                   
-                  <p className="text-blue-100/80 max-w-md">
-                    Stay focused on your preparation. Each day brings you closer to success in the GATE examination on February 1, 2026.
+                  <p className="mt-2 text-sm text-slate-600 dark:text-slate-400 max-w-md">
+                    Stay focused on your preparation. Each day brings you closer to success on February 1, 2026.
                   </p>
-                  
-                  <div className="pt-2">
-                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-300 rounded-full transition-all duration-1000 ease-in-out"
-                        style={{ width: `${percentComplete}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-blue-200 mt-1 font-medium">
-                      <span>Beginning</span>
-                      <span>{Math.round(percentComplete)}% Complete</span>
-                      <span>Exam Day</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Countdown Numbers */}
-              <div className="lg:col-span-8">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {/* Days */}
-                  <div className="relative overflow-hidden">
-                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <div className="text-center">
-                        <span className="block text-4xl font-bold text-white animate-count-pulse">
-                          {daysRemaining}
-                        </span>
-                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Days</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Weeks */}
-                  <div className="relative overflow-hidden">
-                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <div className="text-center">
-                        <span className="block text-4xl font-bold text-white">
-                          {weeksRemaining}
-                        </span>
-                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Weeks</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Hours */}
-                  <div className="relative overflow-hidden">
-                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <div className="text-center">
-                        <span className="block text-4xl font-bold text-white">
-                          {hoursRemaining}
-                        </span>
-                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Hours</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Call to Action */}
-                  <div className="relative overflow-hidden">
-                    <div className="rounded-lg bg-gradient-to-br from-indigo-600 to-blue-700 p-4 h-full flex flex-col justify-center">
-                      <div className="text-center">
-                        <Trophy className="w-6 h-6 mx-auto mb-2 text-indigo-200" />
-                        <span className="block text-xs uppercase tracking-wider text-blue-100 font-semibold">
-                          Keep Going!
-                        </span>
-                        <span className="text-xs text-blue-200 mt-1 block">You're on track</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
                 
-                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {/* Study Tips */}
-                  <div className="relative overflow-hidden col-span-full sm:col-span-2 sm:col-start-2">
-                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-sm font-semibold text-white">Study Tip of the Day</h4>
-                          <p className="text-xs text-blue-200 mt-1">Focus on solving previous years' questions to understand the pattern.</p>
-                        </div>
-                        <ArrowRight className="h-4 w-4 text-blue-200" />
-                      </div>
-                    </div>
-                  </div>
+                <div className="relative h-1.5 bg-slate-100 dark:bg-zinc-700 rounded-full overflow-hidden">
+                  <div 
+                    className="absolute inset-y-0 left-0 bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all duration-1000 ease-in-out"
+                    style={{ width: `${percentComplete}%` }}
+                  />
                 </div>
-              </div>
-            </div>
-            
-            {/* Low Study Time Alert - Integrated with countdown */}
-            {parseFloat(studyHours as string || '0') < 4 && (
-              <div className="mt-6 border border-orange-400/30 rounded-lg overflow-hidden">
-                <div className="bg-gradient-to-r from-orange-500/20 to-amber-500/20 backdrop-blur-sm p-4">
-                  <div className="flex items-start gap-4">
-                    <div className="p-2.5 rounded-full bg-orange-500/30 flex items-center justify-center">
-                      <AlertTriangle className="h-5 w-5 text-orange-100" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-base font-semibold text-white mb-1">Study Time Alert</h3>
-                      <div className="text-blue-100 text-sm mb-3">
-                        <p>You've studied <span className="font-semibold text-white">{studyHours} hours</span> today. For GATE success, aim for <span className="font-semibold text-white">4+ hours</span> daily.</p>
+                <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 -mt-4">
+                  <span>Start</span>
+                  <span>{Math.round(percentComplete)}% Complete</span>
+                  <span>Exam Day</span>
+                </div>
+                
+                {/* Low Study Time Alert - Integrated with countdown */}
+                {parseFloat(studyHours as string || '0') < 4 && (
+                  <div className="mt-4 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30">
+                    <div className="flex items-start gap-3">
+                      <div className="p-1.5 rounded-full bg-amber-100 dark:bg-amber-700/40 flex-shrink-0">
+                        <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs text-blue-100">
-                          <span>Daily goal progress</span>
-                          <span className="font-medium">{parseFloat(studyHours as string || '0') < 1 ? 
-                            `${Math.round(parseFloat(studyHours as string || '0') * 60)} min` : 
-                            `${parseFloat(studyHours as string || '0').toFixed(1)} hrs`} / 4 hrs</span>
-                        </div>
-                        
-                        <div className="w-full bg-white/10 rounded-full h-2">
+                      <div>
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                          Today's study: <span className="font-semibold">{studyHours}h</span> of <span className="font-semibold">4h</span> goal
+                        </p>
+                        <div className="mt-2 h-1 w-full bg-amber-100 dark:bg-amber-700/30 rounded-full">
                           <div 
-                            className="bg-gradient-to-r from-amber-400 to-orange-300 h-2 rounded-full transition-all duration-500 ease-in-out" 
+                            className="h-1 rounded-full bg-amber-500 dark:bg-amber-400" 
                             style={{ width: `${Math.min((parseFloat(studyHours as string || '0') / 4) * 100, 100)}%` }}
                           ></div>
                         </div>
-                      </div>
-                      
-                      <div className="mt-3">
                         <button 
                           onClick={handleStartStudySession}
-                          className="px-3 py-1.5 text-xs font-medium rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors inline-flex items-center gap-1.5"
+                          className="mt-3 text-xs font-medium text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-200 inline-flex items-center gap-1 transition-colors"
                         >
-                          <Clock className="h-3.5 w-3.5" />
-                          Start Study Session
+                          <Clock className="h-3 w-3" />
+                          Start studying now
                         </button>
                       </div>
                     </div>
                   </div>
+                )}
+              </div>
+              
+              {/* Right side - Countdown numbers */}
+              <div className="grid grid-cols-3 gap-4">
+                {/* Days */}
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-full aspect-square flex flex-col items-center justify-center bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700 shadow-sm">
+                    <span className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {daysRemaining}
+                    </span>
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Days</span>
+                </div>
+                
+                {/* Weeks */}
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-full aspect-square flex flex-col items-center justify-center bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700 shadow-sm">
+                    <span className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {weeksRemaining}
+                    </span>
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Weeks</span>
+                </div>
+                
+                {/* Hours */}
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-full aspect-square flex flex-col items-center justify-center bg-white dark:bg-zinc-800 rounded-xl border border-slate-100 dark:border-zinc-700 shadow-sm">
+                    <span className="text-3xl sm:text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+                      {hoursRemaining}
+                    </span>
+                  </div>
+                  <span className="mt-2 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Hours</span>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { BookOpen, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { NotificationCenter } from '@/components/ui/notification-center';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -29,11 +29,11 @@ const Navbar = () => {
     <header className="border-b shadow-sm sticky top-0 z-10 bg-background">
       <div className="container flex h-16 items-center justify-between px-4 md:px-6">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-green-600" />
-          <span className="text-xl font-bold text-green-600 font-['Bricolage_Grotesque',sans-serif]">
-            <span className="hidden sm:inline">GATE Prep Tracker</span>
-            <span className="sm:hidden">GPtracker</span>
-          </span>
+          <img 
+            src="/favicons/android-chrome-192x192.png" 
+            alt="GATE Prep Tracker Logo" 
+            className="h-12 w-12"
+          />
         </div>
         
         {user && (

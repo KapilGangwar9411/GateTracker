@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { BookOpen, BrainCircuit, CheckCircle2, CircleOff, Clock, History, AlertTriangle } from 'lucide-react';
+import { BookOpen, BrainCircuit, CheckCircle2, CircleOff, Clock, History, AlertTriangle, Calendar, CalendarClock, Trophy, ArrowRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
-import { format, subDays, startOfWeek, addDays } from 'date-fns';
+import { format, subDays, startOfWeek, addDays, differenceInDays } from 'date-fns';
 import { Subject, Task, StudySession } from '@/types/database.types';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // Import Recharts components
@@ -62,6 +62,27 @@ const Dashboard = () => {
   const [overallProgress, setOverallProgress] = useState({ total: 0, completed: 0 });
   const [weeklyData, setWeeklyData] = useState<{day: string, studyHours: number, completedTasks: number, progress: number}[]>([]);
   const [subjectData, setSubjectData] = useState<{name: string, lectures: number, completed: number, progress: number}[]>([]);
+
+  // Set GATE exam date - February 1, 2026
+  const examDate = new Date(2026, 1, 1); // Month is 0-indexed, so 1 is February
+  const todayDate = new Date();
+  const daysRemaining = differenceInDays(examDate, todayDate);
+  
+  // Calculate percentages for countdown elements
+  const totalDaysInitially = 365; // Roughly the initial countdown period
+  const percentComplete = Math.min(100, Math.max(0, ((totalDaysInitially - daysRemaining) / totalDaysInitially) * 100));
+  const weeksRemaining = Math.floor(daysRemaining / 7);
+  const hoursRemaining = daysRemaining * 24;
+
+  // CSS animations defined as React styles
+  const pulseAnimation = {
+    animation: 'pulse 2s infinite',
+  };
+  
+  const countdownNumberStyle = {
+    textShadow: '0 0 10px rgba(255,255,255,0.5)',
+    animation: 'pulse 2s infinite',
+  };
 
   // Fetch all lectures for real-time subject progress
   const { data: lectures = [], isLoading: loadingLectures } = useQuery({
@@ -390,25 +411,220 @@ const Dashboard = () => {
   }, [studyHours, subjectStats, calculateProgress, completedTasksCount, overallProgress.completed]);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-2xl font-bold">Dashboard</h2>
+    <div className="space-y-8 pb-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-medium tracking-tight">Dashboard</h2>
+        <div className="text-sm text-muted-foreground">
+          {format(new Date(), 'MMMM d, yyyy')}
+        </div>
+      </div>
+      
+      {/* Exam Countdown Section - Completely Redesigned */}
+      <div className="relative overflow-hidden">
+        <div className="bg-gradient-to-br from-blue-800 to-indigo-900 rounded-xl text-white overflow-hidden shadow-xl">
+          {/* Background Design Elements */}
+          <div className="absolute inset-0 overflow-hidden opacity-10">
+            <div className="absolute -right-10 -top-10 w-72 h-72 bg-white/10 rounded-full blur-2xl"></div>
+            <div className="absolute -left-10 -bottom-10 w-72 h-72 bg-white/10 rounded-full blur-2xl"></div>
+          </div>
+          
+          <div className="relative p-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Countdown Header */}
+              <div className="lg:col-span-4">
+                <div className="space-y-4">
+                  <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-indigo-500/20 text-indigo-100 text-xs font-medium">
+                    <CalendarClock className="w-3.5 h-3.5 mr-1.5" />
+                    GATE CSE Examination 2026
+                  </div>
+                  
+                  <h2 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
+                    The Countdown Is On
+                  </h2>
+                  
+                  <p className="text-blue-100/80 max-w-md">
+                    Stay focused on your preparation. Each day brings you closer to success in the GATE examination on February 1, 2026.
+                  </p>
+                  
+                  <div className="pt-2">
+                    <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-blue-400 to-indigo-300 rounded-full transition-all duration-1000 ease-in-out"
+                        style={{ width: `${percentComplete}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-blue-200 mt-1 font-medium">
+                      <span>Beginning</span>
+                      <span>{Math.round(percentComplete)}% Complete</span>
+                      <span>Exam Day</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Countdown Numbers */}
+              <div className="lg:col-span-8">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {/* Days */}
+                  <div className="relative overflow-hidden">
+                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <div className="text-center">
+                        <span className="block text-4xl font-bold text-white animate-count-pulse">
+                          {daysRemaining}
+                        </span>
+                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Days</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Weeks */}
+                  <div className="relative overflow-hidden">
+                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <div className="text-center">
+                        <span className="block text-4xl font-bold text-white">
+                          {weeksRemaining}
+                        </span>
+                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Weeks</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Hours */}
+                  <div className="relative overflow-hidden">
+                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <div className="text-center">
+                        <span className="block text-4xl font-bold text-white">
+                          {hoursRemaining}
+                        </span>
+                        <span className="block text-xs uppercase tracking-wider text-blue-200 mt-1">Hours</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Call to Action */}
+                  <div className="relative overflow-hidden">
+                    <div className="rounded-lg bg-gradient-to-br from-indigo-600 to-blue-700 p-4 h-full flex flex-col justify-center">
+                      <div className="text-center">
+                        <Trophy className="w-6 h-6 mx-auto mb-2 text-indigo-200" />
+                        <span className="block text-xs uppercase tracking-wider text-blue-100 font-semibold">
+                          Keep Going!
+                        </span>
+                        <span className="text-xs text-blue-200 mt-1 block">You're on track</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Study Tips */}
+                  <div className="relative overflow-hidden col-span-full sm:col-span-2 sm:col-start-2">
+                    <div className="rounded-lg bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-sm border border-white/10 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-semibold text-white">Study Tip of the Day</h4>
+                          <p className="text-xs text-blue-200 mt-1">Focus on solving previous years' questions to understand the pattern.</p>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-blue-200" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
       
       {isLowStudyTime && (
-        <Alert variant="destructive" className="bg-destructive/10 border-destructive/20">
+        <Alert variant="destructive" className="bg-destructive/10 border-destructive/20 border shadow-sm">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle className="text-sm">Low Study Time</AlertTitle>
+          <AlertTitle className="text-sm font-medium">Low Study Time</AlertTitle>
           <AlertDescription className="text-xs">
             You've only studied for {studyHours} hours today. Aim for at least 3 hours of daily study for better results.
           </AlertDescription>
         </Alert>
       )}
       
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Today's Tasks</p>
+                <p className="text-2xl font-semibold">
+                  {completedTasksCount}/{todayTasks.length}
+                </p>
+              </div>
+              <div className="p-2 rounded-full bg-blue-50 dark:bg-blue-950/50">
+                <CheckCircle2 className="h-6 w-6 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Today's Study</p>
+                <p className="text-2xl font-semibold">{loadingStudyHours ? '0.0' : studyHours}h</p>
+              </div>
+              <div className="p-2 rounded-full bg-teal-50 dark:bg-teal-950/50">
+                <Clock className="h-6 w-6 text-teal-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Study Hours</p>
+                <p className="text-2xl font-semibold">{loadingTotalStudyHours ? '0.0' : totalStudyHours}h</p>
+              </div>
+              <div className="p-2 rounded-full bg-indigo-50 dark:bg-indigo-950/50">
+                <History className="h-6 w-6 text-indigo-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Lectures Completed</p>
+                <p className="text-2xl font-semibold">{overallProgress.completed}</p>
+              </div>
+              <div className="p-2 rounded-full bg-violet-50 dark:bg-violet-950/50">
+                <BookOpen className="h-6 w-6 text-violet-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Practice Tests</p>
+                <p className="text-2xl font-semibold">{loadingPracticeTests ? '0' : practiceTests}</p>
+              </div>
+              <div className="p-2 rounded-full bg-amber-50 dark:bg-amber-950/50">
+                <BrainCircuit className="h-6 w-6 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly progress chart */}
-        <Card>
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Weekly Progress</CardTitle>
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Weekly Progress</CardTitle>
             <CardDescription>
               Your study time and completed tasks over the past week
             </CardDescription>
@@ -421,43 +637,39 @@ const Dashboard = () => {
               >
                 <defs>
                   <linearGradient id="colorStudyHours" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8884d8" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#8884d8" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0.1}/>
                   </linearGradient>
                   <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#82ca9d" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#82ca9d" stopOpacity={0.1}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.2} />
                 <XAxis dataKey="day" tick={{ fontSize: 12 }} />
                 <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
                 <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-                <Tooltip />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }} />
                 <Legend />
                 <Area 
                   yAxisId="left"
                   type="monotone" 
                   dataKey="studyHours" 
                   name="Study Hours"
-                  stroke="#8884d8" 
+                  stroke="#6366f1" 
                   fillOpacity={1}
                   fill="url(#colorStudyHours)"
-                  animationDuration={800}
-                  animationBegin={0}
-                  isAnimationActive={false}
+                  strokeWidth={2}
                 />
                 <Area 
                   yAxisId="right"
                   type="monotone" 
                   dataKey="completedTasks" 
                   name="Tasks Done"
-                  stroke="#82ca9d" 
+                  stroke="#10b981" 
                   fillOpacity={1}
                   fill="url(#colorTasks)"
-                  animationDuration={800}
-                  animationBegin={0}
-                  isAnimationActive={false}
+                  strokeWidth={2}
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -465,9 +677,9 @@ const Dashboard = () => {
         </Card>
         
         {/* Subject progress chart */}
-        <Card>
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Subject Progress</CardTitle>
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Subject Progress</CardTitle>
             <CardDescription>
               Progress across your top subjects
             </CardDescription>
@@ -477,22 +689,19 @@ const Dashboard = () => {
               <BarChart
                 data={subjectData}
                 margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
-                barSize={20}
+                barSize={16}
                 layout="vertical"
               >
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.3} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} opacity={0.2} />
                 <XAxis type="number" tick={{ fontSize: 12 }} domain={[0, 100]} />
                 <YAxis dataKey="name" type="category" tick={{ fontSize: 12 }} width={80} />
-                <Tooltip formatter={(value) => [`${value}%`, 'Progress']} />
+                <Tooltip formatter={(value) => [`${value}%`, 'Progress']} contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0", boxShadow: "0 2px 4px rgba(0,0,0,0.05)" }} />
                 <Legend />
                 <Bar 
                   dataKey="progress" 
                   name="Completion %" 
                   fill="#4f46e5" 
                   radius={[0, 4, 4, 0]}
-                  animationDuration={800}
-                  animationBegin={0}
-                  isAnimationActive={false}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -501,9 +710,9 @@ const Dashboard = () => {
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-1 gap-4">
-        <Card>
+        <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Overall Progress</CardTitle>
+            <CardTitle className="text-base font-medium text-gray-900 dark:text-gray-100">Overall Progress</CardTitle>
             <CardDescription>
               You've completed {overallProgress.completed} of {overallProgress.total} lectures across all subjects
             </CardDescription>
@@ -514,13 +723,13 @@ const Dashboard = () => {
                 <span>Progress</span>
                 <span className="font-medium">{calculateProgress()}%</span>
               </div>
-              <Progress value={calculateProgress()} className="h-2" />
+              <Progress value={calculateProgress()} className="h-2 rounded-full bg-gray-100 dark:bg-gray-800" />
             </div>
             
             {/* Subject-wise progress - show top 3 subjects */}
             <div className="mt-6 space-y-4">
               <h4 className="text-sm font-medium">Top Subjects</h4>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(subjectStats)
                   .filter(([_, stats]) => stats.total > 0)
                   .sort((a, b) => b[1].total - a[1].total)
@@ -530,14 +739,14 @@ const Dashboard = () => {
                     const progress = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
                     
                     return (
-                      <div key={subjectId} className="space-y-1">
+                      <div key={subjectId} className="space-y-1.5">
                         <div className="flex justify-between text-xs">
                           <span className="font-medium">{subject?.name}</span>
                           <span>{stats.completed}/{stats.total} ({progress}%)</span>
                         </div>
-                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                           <div 
-                            className={`h-full rounded-full ${subject?.color}`}
+                            className={`h-full rounded-full bg-gradient-to-r ${subject?.color}`}
                             style={{ width: `${progress}%` }}
                           ></div>
                         </div>
@@ -550,75 +759,11 @@ const Dashboard = () => {
         </Card>
       </div>
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Today's Tasks</p>
-                <p className="text-2xl font-bold">
-                  {completedTasksCount}/{todayTasks.length}
-                </p>
-              </div>
-              <CheckCircle2 className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Today's Study</p>
-                <p className="text-2xl font-bold">{loadingStudyHours ? '0.0' : studyHours}h</p>
-              </div>
-              <Clock className="h-8 w-8 text-teal-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Study Hours</p>
-                <p className="text-2xl font-bold">{loadingTotalStudyHours ? '0.0' : totalStudyHours}h</p>
-              </div>
-              <History className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Lectures Completed</p>
-                <p className="text-2xl font-bold">{overallProgress.completed}</p>
-              </div>
-              <BookOpen className="h-8 w-8 text-indigo-500" />
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Practice Tests</p>
-                <p className="text-2xl font-bold">{loadingPracticeTests ? '0' : practiceTests}</p>
-              </div>
-              <BrainCircuit className="h-8 w-8 text-amber-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
       {/* Today's Tasks Section */}
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium">Today's Tasks</h3>
+      <div className="space-y-3">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Today's Tasks</h3>
         {todayTasks.length === 0 ? (
-          <Card>
+          <Card className="bg-white dark:bg-zinc-900 border-0 shadow-sm">
             <CardContent className="py-6 text-center">
               <p className="text-muted-foreground">No tasks scheduled for today.</p>
             </CardContent>
@@ -626,13 +771,17 @@ const Dashboard = () => {
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {todayTasks.map((task: TaskWithSubject) => (
-              <Card key={task.id} className={`${task.completed ? 'bg-muted/40' : ''}`}>
+              <Card key={task.id} className={`bg-white dark:bg-zinc-900 border-0 shadow-sm ${task.completed ? 'bg-gray-50/50 dark:bg-gray-800/20' : ''}`}>
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className="flex items-center">
                     {task.completed ? (
-                      <CheckCircle2 className="h-5 w-5 mr-3 text-green-500" />
+                      <div className="p-1 rounded-full bg-green-50 dark:bg-green-950/50 mr-3">
+                        <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      </div>
                     ) : (
-                      <CircleOff className="h-5 w-5 mr-3 text-muted-foreground" />
+                      <div className="p-1 rounded-full bg-gray-100 dark:bg-gray-800 mr-3">
+                        <CircleOff className="h-4 w-4 text-muted-foreground" />
+                      </div>
                     )}
                     <div>
                       <p className={`font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>

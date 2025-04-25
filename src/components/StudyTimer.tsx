@@ -306,6 +306,7 @@ const StudyTimer = () => {
       const savedSessions: SavedSessions = savedData ? JSON.parse(savedData) : {};
       savedSessions[sessionId] = true;
       localStorage.setItem('savedStudySessions', JSON.stringify(savedSessions));
+      console.log(`Marked session ${sessionId} as saved in localStorage`);
     } catch (e) {
       console.error('Error marking session as saved:', e);
     }
@@ -322,6 +323,37 @@ const StudyTimer = () => {
       }
     } catch (e) {
       console.error('Error removing saved session:', e);
+    }
+  };
+
+  // Add this function to clear saved sessions older than 24 hours
+  const clearOldSavedSessions = (): void => {
+    try {
+      const savedData = localStorage.getItem('savedStudySessions');
+      if (savedData) {
+        const savedSessions = JSON.parse(savedData) as SavedSessions;
+        const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+        
+        let hasChanges = false;
+        for (const sessionId in savedSessions) {
+          // Extract timestamp from session ID (assuming format: uid_timestamp)
+          const parts = sessionId.split('_');
+          if (parts.length > 1) {
+            const timestamp = parseInt(parts[parts.length - 1]);
+            if (!isNaN(timestamp) && timestamp < oneDayAgo) {
+              delete savedSessions[sessionId];
+              hasChanges = true;
+            }
+          }
+        }
+        
+        if (hasChanges) {
+          localStorage.setItem('savedStudySessions', JSON.stringify(savedSessions));
+          console.log('Cleared old saved sessions from localStorage');
+        }
+      }
+    } catch (e) {
+      console.error('Error clearing old saved sessions:', e);
     }
   };
 
@@ -503,6 +535,9 @@ const StudyTimer = () => {
     mutationFn: async (duration: number) => {
       if (!user) return;
       
+      // Clear old sessions first to prevent localStorage bloat
+      clearOldSavedSessions();
+      
       // Generate a session ID if one doesn't exist yet
       const sessionId = currentSessionId || `${user.id}_${Date.now()}`;
       if (!currentSessionId) {
@@ -511,33 +546,67 @@ const StudyTimer = () => {
       
       // Check if this session has already been saved
       if (isSessionSaved(sessionId)) {
-        console.log('Session already saved, preventing duplicate save');
+        console.log(`Session ${sessionId} already saved, skipping save`);
         return;
       }
       
-      // Mark the session as saved BEFORE database operation to prevent race conditions
-      markSessionSaved(sessionId);
-      
       console.log(`Saving session ${sessionId} with duration ${duration} seconds`);
       
-      const { error } = await supabase
-        .from('study_sessions')
-        .insert({
-          user_id: user.id,
-          duration: duration,
-          session_date: format(new Date(), 'yyyy-MM-dd')
-        });
-      
-      if (error) {
-        // Remove from saved sessions if there was an error
-        removeSessionSaved(sessionId);
+      try {
+        // Mark the session as saved BEFORE database operation to prevent race conditions
+        markSessionSaved(sessionId);
         
-        toast.error('Error saving study session', { description: error.message });
-        throw error;
-      } else {
-        toast.success('Study session saved', { description: `You studied for ${formatStudyTimeForDisplay(duration)}` });
-        refetchSessions();
-        refetchHistorical();
+        // Track this as a completed cycle in localStorage
+        if (cycles > 0) {
+          try {
+            const completedCycles = localStorage.getItem('completedCycles') ? 
+              JSON.parse(localStorage.getItem('completedCycles') || '[]') : [];
+            
+            completedCycles.push({
+              sessionId,
+              timestamp: Date.now(),
+              duration
+            });
+            
+            // Only keep the most recent 100 cycles
+            if (completedCycles.length > 100) {
+              completedCycles.splice(0, completedCycles.length - 100);
+            }
+            
+            localStorage.setItem('completedCycles', JSON.stringify(completedCycles));
+            console.log('Tracked completed cycle in localStorage');
+          } catch (e) {
+            console.error('Error tracking cycle in localStorage:', e);
+          }
+        }
+        
+        // Insert into database - only using fields that exist in the schema
+        const { data, error } = await supabase
+          .from('study_sessions')
+          .insert({
+            user_id: user.id,
+            duration: duration,
+            session_date: format(new Date(), 'yyyy-MM-dd')
+            // Removed is_completed_cycle field as it doesn't exist in the database
+          })
+          .select();
+        
+        if (error) {
+          // Remove from saved sessions if there was an error
+          removeSessionSaved(sessionId);
+          console.error('Database error:', error);
+          toast.error('Error saving study session', { description: error.message });
+          throw error;
+        } else {
+          toast.success('Study session saved', { description: `You studied for ${formatStudyTimeForDisplay(duration)}` });
+          console.log('Session saved to database:', data);
+          refetchSessions();
+          refetchHistorical();
+        }
+      } catch (err) {
+        console.error('Error in saveSession mutation:', err);
+        removeSessionSaved(sessionId);
+        toast.error('Error saving study session', { description: 'Please try again' });
       }
     }
   });
@@ -631,24 +700,28 @@ const StudyTimer = () => {
       // Timer finished
       setIsActive(false);
       
-      if (activeTab === "pomodoro" && sessionStartTime !== null && !sessionSaved) {
+      if (activeTab === "pomodoro" && sessionStartTime !== null) {
         // Calculate the actual study duration in minutes
         const sessionDuration = parseInt(selectedTime) * 60;
         
-        // Set saved flag first to prevent any race conditions
-        setSessionSaved(true);
-        
         // Generate a unique ID for this completed session if not already set
         if (!currentSessionId) {
-          setCurrentSessionId(`${user?.id || 'anon'}_${sessionStartTime}`);
+          const newSessionId = `${user?.id || 'anon'}_${Date.now()}`;
+          setCurrentSessionId(newSessionId);
         }
         
-        // Check if already saved
-        const sessionId = currentSessionId || `${user?.id || 'anon'}_${sessionStartTime}`;
+        // Clear sessionSaved flag to ensure we attempt to save this session
+        setSessionSaved(false);
+        
+        // Get the current session ID (either existing or newly generated)
+        const sessionId = currentSessionId || `${user?.id || 'anon'}_${Date.now()}`;
+        
+        // Only check if already saved as a safety mechanism
         if (!isSessionSaved(sessionId)) {
           saveSession.mutate(sessionDuration);
+          setSessionSaved(true);
         } else {
-          console.log(`Session ${sessionId} already saved, skipping save`);
+          console.log(`Session ${sessionId} already saved when timer finished, skipping save`);
         }
         
         setSessionStartTime(null);
@@ -671,7 +744,16 @@ const StudyTimer = () => {
       
       if (activeTab === "pomodoro") {
         // Switch to break
-        setCycles(prev => prev + 1);
+        const newCycles = cycles + 1;
+        setCycles(newCycles);
+        
+        // Save to localStorage immediately
+        try {
+          localStorage.setItem('studyCycles', newCycles.toString());
+        } catch (e) {
+          console.error('Error saving cycles:', e);
+        }
+        
         setActiveTab("break");
         setTime(300); // 5 min break
         
@@ -713,7 +795,7 @@ const StudyTimer = () => {
         clearInterval(interval);
       }
     };
-  }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime, sessionSaved, currentSessionId, user]);
+  }, [isActive, time, activeTab, selectedTime, sessionStartTime, saveSession, reminderInterval, nextReminderTime, sessionSaved, currentSessionId, user, cycles]);
 
   // Add a new effect to sync timer on visibility changes
   useEffect(() => {
@@ -928,6 +1010,33 @@ const StudyTimer = () => {
   const averageStudyTimePerDay = historicalData.length > 0 
     ? Math.round(totalHistoricalStudyTime / historicalData.length) 
     : 0;
+
+  // Add a new effect for cycles persistence
+  useEffect(() => {
+    // Save cycles count to localStorage whenever it changes
+    try {
+      localStorage.setItem('studyCycles', cycles.toString());
+    } catch (e) {
+      console.error('Error saving cycles:', e);
+    }
+  }, [cycles]);
+
+  // Load cycles from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedCycles = localStorage.getItem('studyCycles');
+      if (savedCycles) {
+        setCycles(parseInt(savedCycles));
+      }
+    } catch (e) {
+      console.error('Error loading cycles:', e);
+    }
+  }, []);
+
+  // Clear old saved sessions on component mount
+  useEffect(() => {
+    clearOldSavedSessions();
+  }, []);
 
   return (
     <div className="space-y-8">

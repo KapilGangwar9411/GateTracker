@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Note } from '@/types/database.types';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Loader } from "@/components/ui/loader";
 
 type NoteFormData = {
   title: string;
@@ -325,10 +326,7 @@ const QuickNotes = () => {
       {/* Notes Grid */}
       <div>
         {isLoading ? (
-          <div className="text-center py-8 bg-white dark:bg-zinc-900 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
-            <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent mb-4"></div>
-            <p className="text-gray-500 dark:text-gray-400">Loading your notes...</p>
-          </div>
+          <Loader size="sm" text="Loading your notes..." logo={false} />
         ) : filteredNotes.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredNotes.map((note: Note) => (

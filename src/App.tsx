@@ -10,6 +10,7 @@ import SubjectLectures from "./pages/SubjectLectures";
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { Loader } from "@/components/ui/loader";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +27,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   
   if (isLoading) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+    return <Loader variant="primary" text="Preparing your GATE Tracker..." />;
   }
   
   if (!user) {

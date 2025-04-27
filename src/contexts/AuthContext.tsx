@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Loader } from "@/components/ui/loader";
 
 // Define the shape of the context value
 type AuthContextType = {
@@ -32,15 +33,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   useEffect(() => {
     // Get the session from storage
     async function getInitialSession() {
       try {
         setIsLoading(true);
+        setIsInitializing(true);
+        
+        // Fetch the session data
         const { data } = await supabase.auth.getSession();
         setSession(data.session);
         setUser(data.session?.user ?? null);
+        
+        // Add a small artificial delay for a smoother loading experience (min 700ms)
+        const startTime = Date.now();
+        const minDelay = 700;
+        
+        setTimeout(() => {
+          const elapsedTime = Date.now() - startTime;
+          // If fetching took less than minDelay, wait the remaining time
+          const remainingTime = Math.max(0, minDelay - elapsedTime);
+          
+          setTimeout(() => {
+            setIsInitializing(false);
+            setIsLoading(false);
+          }, remainingTime);
+        }, 0);
+        
       } catch (error) {
         console.error('Error getting initial session:', error);
         toast({
@@ -48,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           description: 'Failed to retrieve your session. Please try refreshing the page.',
           variant: 'destructive',
         });
-      } finally {
+        setIsInitializing(false);
         setIsLoading(false);
       }
     }
@@ -182,5 +203,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithGithub,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {isInitializing ? (
+        <Loader text="Welcome to GATE Tracker" />
+      ) : (
+        children
+      )}
+    </AuthContext.Provider>
+  );
 }

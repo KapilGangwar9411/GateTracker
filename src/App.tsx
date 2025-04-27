@@ -27,7 +27,13 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
   
   if (isLoading) {
-    return <Loader variant="primary" text="Preparing your GATE Tracker..." />;
+    return (
+      <Loader 
+        variant="primary" 
+        text="Preparing your GATE Tracker..." 
+        secondaryText="Loading your data"
+      />
+    );
   }
   
   if (!user) {
@@ -44,6 +50,54 @@ const AppRoutes = () => {
     <Routes>
       <Route 
         path="/" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/dashboard" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/tasks" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/study-timer" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/subjects" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/notes" 
+        element={
+          <ProtectedRoute>
+            <Index />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/reminders" 
         element={
           <ProtectedRoute>
             <Index />

@@ -1,94 +1,228 @@
 import React from 'react';
-import { cn } from "@/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import styled from 'styled-components';
 
-const loaderVariants = cva(
-  "relative flex items-center justify-center", 
-  {
-    variants: {
-      variant: {
-        default: "",
-        primary: "",
-        minimal: ""
-      },
-      size: {
-        default: "h-screen w-full",
-        sm: "h-64 w-full",
-        lg: "h-[80vh] w-full",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-);
-
-interface LoaderProps extends React.HTMLAttributes<HTMLDivElement>,
-  VariantProps<typeof loaderVariants> {
+interface LoaderProps {
+  className?: string;
+  variant?: 'default' | 'primary' | 'minimal';
+  size?: 'default' | 'sm' | 'lg';
   text?: string;
+  secondaryText?: string;
   logo?: boolean;
 }
 
 const Loader = ({
   className,
-  variant,
-  size,
-  text = "Loading your experience...",
+  variant = 'default',
+  size = 'default',
+  text = "Loading...",
+  secondaryText = "Please wait",
   logo = true,
   ...props
 }: LoaderProps) => {
   return (
-    <div
-      className={cn(loaderVariants({ variant, size, className }))}
-      {...props}
-    >
-      <div className="flex flex-col items-center justify-center space-y-6">
-        {logo && (
-          <div className="relative w-24 h-24 mb-4">
-            {/* Logo container with pulse effect */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 animate-pulse opacity-75 blur-md"></div>
-            
-            {/* Add your actual logo here */}
-            <div className="absolute inset-0 flex items-center justify-center">
+    <StyledWrapper className={className} variant={variant} size={size} {...props}>
+      <div className="loader-container">
+        <div className="loader">
+          <div className="box">
+            <div className="logo">
               <img 
-                src="/logos/Gate.png" 
-                alt="GATE Tracker" 
-                className="w-16 h-16 object-contain relative z-10"
+                src="/favicons/android-chrome-192x192.png" 
+                alt="GATE Tracker Logo" 
+                className="favicon-logo"
               />
             </div>
           </div>
-        )}
-        
-        {/* Main loader animation */}
-        <div className="relative">
-          {/* Background track */}
-          <div className="h-2 w-48 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            {/* Gradient animated loader bar */}
-            <div className="h-full w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full animate-loading-bar"></div>
-          </div>
-          
-          {/* Additional decorative elements */}
-          <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div>
-          <div className="absolute -bottom-1 -left-1 w-2 h-2 bg-pink-500 rounded-full animate-ping" style={{ animationDelay: "0.5s" }}></div>
-        </div>
-        
-        {/* Loading text */}
-        <div className="text-center space-y-1">
-          <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{text}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">Preparing your dashboard</p>
-        </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-indigo-500 rounded-full animate-float opacity-70"></div>
-          <div className="absolute top-3/4 left-1/3 w-1.5 h-1.5 bg-purple-500 rounded-full animate-float opacity-70" style={{ animationDelay: "1s" }}></div>
-          <div className="absolute top-1/3 right-1/4 w-1 h-1 bg-pink-500 rounded-full animate-float opacity-70" style={{ animationDelay: "0.5s" }}></div>
-          <div className="absolute bottom-1/4 right-1/3 w-2 h-2 bg-indigo-300 rounded-full animate-float opacity-70" style={{ animationDelay: "1.5s" }}></div>
+          <div className="box" />
+          <div className="box" />
+          <div className="box" />
+          <div className="box" />
         </div>
       </div>
-    </div>
+    </StyledWrapper>
   );
 };
+
+interface StyledWrapperProps {
+  variant?: 'default' | 'primary' | 'minimal';
+  size?: 'default' | 'sm' | 'lg';
+}
+
+const StyledWrapper = styled.div<StyledWrapperProps>`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  
+  ${props => props.size === 'default' && `
+    height: 100vh;
+  `}
+  
+  ${props => props.size === 'sm' && `
+    height: 16rem;
+  `}
+  
+  ${props => props.size === 'lg' && `
+    height: 80vh;
+  `}
+  
+  ${props => props.variant === 'default' && `
+    background-color: var(--background);
+  `}
+  
+  ${props => props.variant === 'primary' && `
+    background: linear-gradient(to bottom, var(--background), rgba(79, 70, 229, 0.1));
+  `}
+  
+  .loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+  }
+  
+  .text-center {
+    text-align: center;
+  }
+  
+  .space-y-1 > * + * {
+    margin-top: 0.25rem;
+  }
+  
+  .mt-6 {
+    margin-top: 1.5rem;
+  }
+  
+  .text-base {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+  
+  .text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .font-medium {
+    font-weight: 500;
+  }
+  
+  .text-muted {
+    color: #6b7280;
+  }
+  
+  .dark .text-muted {
+    color: #9ca3af;
+  }
+
+  .loader {
+    --size: 250px;
+    --duration: 2s;
+    --logo-color: #4f46e5;
+    --background: linear-gradient(
+      0deg,
+      rgba(79, 70, 229, 0.2) 0%,
+      rgba(99, 102, 241, 0.2) 100%
+    );
+    height: var(--size);
+    aspect-ratio: 1;
+    position: relative;
+  }
+
+  .dark .loader {
+    --logo-color: #818cf8;
+    --background: linear-gradient(
+      0deg,
+      rgba(79, 70, 229, 0.3) 0%,
+      rgba(99, 102, 241, 0.3) 100%
+    );
+  }
+
+  .loader .box {
+    position: absolute;
+    background: rgba(99, 102, 241, 0.1);
+    background: var(--background);
+    border-radius: 50%;
+    border-top: 1px solid rgba(99, 102, 241, 0.8);
+    box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px;
+    backdrop-filter: blur(5px);
+    animation: ripple var(--duration) infinite ease-in-out;
+  }
+
+  .loader .box:nth-child(1) {
+    inset: 40%;
+    z-index: 99;
+  }
+
+  .loader .box:nth-child(2) {
+    inset: 30%;
+    z-index: 98;
+    border-color: rgba(99, 102, 241, 0.8);
+    animation-delay: 0.2s;
+  }
+
+  .loader .box:nth-child(3) {
+    inset: 20%;
+    z-index: 97;
+    border-color: rgba(99, 102, 241, 0.6);
+    animation-delay: 0.4s;
+  }
+
+  .loader .box:nth-child(4) {
+    inset: 10%;
+    z-index: 96;
+    border-color: rgba(99, 102, 241, 0.4);
+    animation-delay: 0.6s;
+  }
+
+  .loader .box:nth-child(5) {
+    inset: 0%;
+    z-index: 95;
+    border-color: rgba(99, 102, 241, 0.2);
+    animation-delay: 0.8s;
+  }
+
+  .loader .logo {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    padding: 30%;
+  }
+
+  .loader .logo .favicon-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    animation: color-change var(--duration) infinite ease-in-out;
+  }
+
+  @keyframes ripple {
+    0% {
+      transform: scale(1);
+      box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px;
+    }
+    50% {
+      transform: scale(1.3);
+      box-shadow: rgba(0, 0, 0, 0.3) 0px 30px 20px -0px;
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: rgba(0, 0, 0, 0.3) 0px 10px 10px -0px;
+    }
+  }
+
+  @keyframes color-change {
+    0% {
+      fill: var(--logo-color);
+    }
+    50% {
+      fill: white;
+    }
+    100% {
+      fill: var(--logo-color);
+    }
+  }
+`;
 
 export { Loader, type LoaderProps }; 

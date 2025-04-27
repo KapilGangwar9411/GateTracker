@@ -92,6 +92,9 @@ const Navbar = () => {
                         <Link to="/dashboard" className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setIsMobileMenuOpen(false)}>
                           Dashboard
                         </Link>
+                        <Link to="/tasks" className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setIsMobileMenuOpen(false)}>
+                          Tasks
+                        </Link>
                         <Link to="/study-timer" className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setIsMobileMenuOpen(false)}>
                           Study Timer
                         </Link>
@@ -142,6 +145,7 @@ const Navbar = () => {
               <div className="hidden md:flex items-center gap-2">
                 <div className="hidden lg:flex items-center space-x-1">
                   <Link to="/dashboard" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Dashboard</Link>
+                  <Link to="/tasks" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Tasks</Link>
                   <Link to="/study-timer" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Study Timer</Link>
                   <Link to="/subjects" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Subjects</Link>
                   <Link to="/notes" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Notes</Link>
